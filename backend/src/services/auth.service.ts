@@ -20,15 +20,29 @@ export async function login(data: LoginRequest) {
       where: { dni: parseInt(emailOdni, 10) },
     });
 
-    if (!socio) throw new Error("Credenciales inválidas");
+    if (socio) {
+      usuario = await prisma.usuario.findUnique({
+        where: { id: socio.usuarioId },
+        include: {
+          socio: true,
+          administrativo: true,
+        },
+      });
+    } else {
+      const administrativo = await prisma.administrativo.findUnique({
+        where: { dni: parseInt(emailOdni, 10) },
+      });
 
-    usuario = await prisma.usuario.findUnique({
-      where: { id: socio.usuarioId },
-      include: {
-        socio: true,
-        administrativo: true,
-      },
-    });
+      if (!administrativo) throw new Error("Credenciales inválidas");
+
+      usuario = await prisma.usuario.findUnique({
+        where: { id: administrativo.usuarioId },
+        include: {
+          socio: true,
+          administrativo: true,
+        },
+      });
+    }
   } else {
     // Por email
     usuario = await prisma.usuario.findUnique({

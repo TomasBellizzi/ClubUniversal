@@ -667,13 +667,13 @@ export default function AdminEventos() {
                     </Form.Group>
                   </Col>
 
-                  {/* UbicaciÃ³n */}
+                  {/* Ubicación */}
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>UbicaciÃ³n</Form.Label>
+                      <Form.Label>Ubicación</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="SalÃ³n, gimnasio, sede, etc."
+                        placeholder="Salón, gimnasio, sede, etc."
                         {...register("ubicacion")}
                         isInvalid={!!errors.ubicacion}
                       />
@@ -737,7 +737,7 @@ export default function AdminEventos() {
                   <p><strong>Fecha:</strong> {formatearFecha(eventoSeleccionado.fecha)}</p>
                   <p><strong>Horario:</strong> {eventoSeleccionado.horaInicio} - {eventoSeleccionado.horaFin}</p>
                   <p><strong>Actividad:</strong> {eventoSeleccionado.actividad?.nombre || '-'}</p>
-                  <p><strong>UbicaciÃ³n:</strong> {eventoSeleccionado.ubicacion || '-'}</p>
+                  <p><strong>Ubicación:</strong> {eventoSeleccionado.ubicacion || '-'}</p>
                   <p><strong>Capacidad:</strong> {eventoSeleccionado.capacidad}</p>
                   <p><strong>Entradas vendidas:</strong> {eventoSeleccionado.entradasVendidas || 0}</p>
                   <p><strong>Precio Entrada:</strong> ${eventoSeleccionado.precioEntrada}</p>

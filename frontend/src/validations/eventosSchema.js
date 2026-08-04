@@ -34,7 +34,7 @@ export const eventoSchema = yup.object().shape({
 
   ubicacion: yup
     .string()
-    .max(120, "La ubicaciÃ³n no puede superar los 120 caracteres")
+    .max(120, "La ubicación no puede superar los 120 caracteres")
     .nullable(),
 
   descripcion: yup

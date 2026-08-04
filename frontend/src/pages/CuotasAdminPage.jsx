@@ -5,7 +5,24 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import { api } from "../service/api";
 import { useAuth } from "../hooks/useAuth";
+import { getRole, getUser } from "../helpers/auth";
 import logoUniversal from "../assets/logoUniversal.png";
+
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+
+const resolveComprobanteUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return `${API_BASE_URL}/${url}`;
+};
+
+const isPdfComprobante = (url) =>
+  String(url || "")
+    .split(/[?#]/)[0]
+    .toLowerCase()
+    .endsWith(".pdf");
 
 const toUiEstado = (estadoDb) => {
   const e = String(estadoDb || "").toUpperCase();
@@ -25,6 +42,11 @@ function CuotasAdminPage() {
   const [selectedCuota, setSelectedCuota] = useState(null);
   const navigate = useNavigate();
   const { hasRole } = useAuth();
+  const storedUser = getUser();
+  const currentRole = getRole() || storedUser?.role || storedUser?.rol;
+  const canGenerateCuotas =
+    hasRole(["ADMIN", "ADMINISTRATIVO"]) ||
+    ["ADMIN", "ADMINISTRATIVO"].includes(String(currentRole || "").toUpperCase());
 
   useEffect(() => {
     let mounted = true;
@@ -87,7 +109,10 @@ function CuotasAdminPage() {
   }, [cuotas, filtro, busqueda]);
 
   const abrirModal = (cuota) => {
-    setSelectedCuota(cuota);
+    setSelectedCuota({
+      ...cuota,
+      comprobanteUrl: resolveComprobanteUrl(cuota.comprobanteUrl),
+    });
     setShowModal(true);
   };
 
@@ -124,13 +149,19 @@ function CuotasAdminPage() {
     }
   };
 
-  const handleGenerarCuotas = () => navigate("/generar-cuota");
+  const handleGenerarCuotas = () => {
+    if (!canGenerateCuotas) {
+      alert("Solo un administrador puede generar cuotas.");
+      return;
+    }
+    navigate("/generar-cuota");
+  };
 
   return (
     <div className="cuotas-page">
       <Header />
 
-      <div className="container mt-5 mb-5">
+      <div className="container cuotas-admin-container">
         <div className="card shadow-sm border-0 rounded-4 p-4">
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h4 className="mb-0 text-success fw-bold">Cuotas</h4>
@@ -159,7 +190,7 @@ function CuotasAdminPage() {
           </div>
 
           {/* Listado */}
-          <div style={{ maxHeight: 500, overflowY: "auto" }}>
+          <div className="cuotas-list">
             {loading && <div className="text-center py-3 text-muted">Cargando cuotas...</div>}
             {!loading && cuotasFiltradas.length === 0 && (
               <div className="text-center py-3 text-muted">No hay resultados.</div>
@@ -233,13 +264,11 @@ function CuotasAdminPage() {
           </div>
 
           {/* Botón generar cuotas */}
-          {hasRole(["ADMIN", "ADMINISTRATIVO"]) && (
-            <div className="text-end mt-4">
-              <Button variant="success" onClick={handleGenerarCuotas} className="px-4">
-                  Generar cuotas
-              </Button>
-            </div>
-          )}
+          <div className="text-end mt-4">
+            <Button variant="success" onClick={handleGenerarCuotas} className="px-4">
+                Generar cuotas
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -250,7 +279,7 @@ function CuotasAdminPage() {
         </Modal.Header>
         <Modal.Body className="text-center">
           {selectedCuota?.comprobanteUrl ? (
-            selectedCuota.comprobanteUrl.endsWith(".pdf") ? (
+            isPdfComprobante(selectedCuota.comprobanteUrl) ? (
               <embed
                 src={selectedCuota.comprobanteUrl}
                 type="application/pdf"

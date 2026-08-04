@@ -16,7 +16,7 @@ api.interceptors.response.use(
   (err) => {
     if (err?.response?.status === 401) {
       clearAuth();
-      window.location.href = '/IniciarSesion';
+      window.location.href = '/';
     }
     return Promise.reject(err);
   }

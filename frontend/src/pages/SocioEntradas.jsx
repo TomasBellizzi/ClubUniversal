@@ -49,7 +49,7 @@ export default function SocioEntradas() {
       });
       if (!res.ok) throw new Error("Error al cargar eventos");
       const data = await res.json();
-      setEventos(data.eventos || data);
+      setEventos(Array.isArray(data?.eventos) ? data.eventos : Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
       alert(error.message);
@@ -63,7 +63,7 @@ export default function SocioEntradas() {
       });
       if (!res.ok) throw new Error("Error al cargar entradas");
       const data = await res.json();
-      setMisEntradas(data.entradas || data);
+      setMisEntradas(Array.isArray(data?.entradas) ? data.entradas : Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -127,15 +127,22 @@ export default function SocioEntradas() {
       day: "numeric",
     });
 
-  const esFuturo = (fechaStr) => {
-    const fechaEvento = new Date(fechaStr);
-    const ahora = new Date();
-    return fechaEvento >= ahora.setHours(0, 0, 0, 0);
+  const getDatePart = (fechaStr) => {
+    if (!fechaStr) return "";
+    return String(fechaStr).split("T")[0];
   };
 
-  const eventosDisponibles = eventos.filter(
-    (e) => esFuturo(e.fecha) && e.entradasVendidas < e.capacidad
-  );
+  const esFuturo = (fechaStr) => {
+    const fechaEvento = getDatePart(fechaStr);
+    const hoy = new Date().toISOString().split("T")[0];
+    return fechaEvento >= hoy;
+  };
+
+  const eventosDisponibles = eventos.filter((e) => {
+    const entradasVendidas = Number(e.entradasVendidas ?? 0);
+    const capacidad = Number(e.capacidad ?? 0);
+    return esFuturo(e.fecha) && capacidad > 0 && entradasVendidas < capacidad;
+  });
 
   const entradasFiltradas = misEntradas.filter((entrada) => {
     const fechaEvento = entrada.evento?.fecha || entrada.fecha;
@@ -152,9 +159,7 @@ export default function SocioEntradas() {
   });
 
   const getEstadoBadge = (entrada) => {
-    const fechaEvento = new Date(entrada.evento?.fecha || entrada.fecha);
-    const ahora = new Date();
-    return fechaEvento >= ahora.setHours(0, 0, 0, 0) ? (
+    return esFuturo(entrada.evento?.fecha || entrada.fecha) ? (
       <Badge bg="success">Activa</Badge>
     ) : (
       <Badge bg="secondary">Pasada</Badge>
@@ -313,7 +318,7 @@ export default function SocioEntradas() {
                           <small className="text-muted d-block">
                             <i className="bi bi-people me-1"></i>
                             Entradas disponibles:{" "}
-                            {evento.capacidad - evento.entradasVendidas}
+                            {Number(evento.capacidad ?? 0) - Number(evento.entradasVendidas ?? 0)}
                           </small>
                           {evento.descripcion && (
                             <small className="text-muted d-block mt-2">
@@ -380,7 +385,7 @@ export default function SocioEntradas() {
                     <Form.Label>Adjuntar comprobante</Form.Label>
                     <Form.Control
                       type="file"
-                      accept="image/*,application/pdf"
+                      accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
                       {...register("comprobante")}
                     />
                     {errors.comprobante && (

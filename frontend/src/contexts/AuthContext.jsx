@@ -18,8 +18,11 @@ export function AuthProvider({ children }) {
 
     if (token && !isTokenExpired()) {
       const payload = parseJWT(token) || {};
-      const rol = normalizeRole(payload.role || payload.rol || payload.userRole);
-      setUser({ ...payload, rol });
+      const usuario = getUser() || {};
+      const rol = normalizeRole(
+        usuario.role || usuario.rol || payload.role || payload.rol || payload.userRole
+      );
+      setUser({ ...payload, ...usuario, rol, role: rol });
       setLoading(false);
       return;
     } else if (token) {

@@ -1,5 +1,6 @@
 import 'bootstrap/dist/css/bootstrap.min.css';
 import fondo from '../assets/fondo.jpg';
+import Footer from './Footer';
 
 function Layout({ children, withBackground = false }) {
   if (withBackground) {
@@ -13,11 +14,15 @@ function Layout({ children, withBackground = false }) {
           minHeight: '100vh',
           width: '100%',
           margin: 0,
-          padding: 0
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
-        
-        {children}
+        <main className="app-main">
+          {children}
+        </main>
+        <Footer />
       </div>
     );
   }
@@ -25,7 +30,10 @@ function Layout({ children, withBackground = false }) {
   return (
     <>
       
-      {children}
+      <main className="app-main">
+        {children}
+      </main>
+      <Footer />
     </>
   );
 }
