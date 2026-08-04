@@ -130,6 +130,9 @@ export async function updateUser(
   }
 
   if (data.socio) {
+    if (data.socio.dni !== undefined) {
+      data.socio.dni = Number(data.socio.dni);
+    }
     updateData.socio = {
       update: {
         ...data.socio,
@@ -139,6 +142,9 @@ export async function updateUser(
   }
 
   if (data.administrativo) {
+    if (data.administrativo.dni !== undefined) {
+      data.administrativo.dni = Number(data.administrativo.dni);
+    }
     updateData.administrativo = {
       update: data.administrativo,
     };

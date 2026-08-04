@@ -4,6 +4,22 @@ import AdjuntarComprobante from "../components/AdjuntarComprobante";
 import { Modal, Button } from "react-bootstrap";
 import { api } from "../service/api";
 
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+
+const resolveComprobanteUrl = (url) => {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return `${API_BASE_URL}/${url}`;
+};
+
+const isPdfComprobante = (url) =>
+  String(url || "")
+    .split(/[?#]/)[0]
+    .toLowerCase()
+    .endsWith(".pdf");
+
 const CuotasTable = () => {
   const [cuotas, setCuotas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,7 +113,11 @@ const CuotasTable = () => {
       cerrarModalAdjuntar();
     } catch (error) {
       console.error("Error al adjuntar comprobante:", error);
-      setErrorMsg("No se pudo adjuntar el comprobante. Revisá el archivo y probá de nuevo.");
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        "No se pudo adjuntar el comprobante. Revisá el archivo y probá de nuevo.";
+      setErrorMsg(message);
     }
   };
 
@@ -112,7 +132,7 @@ const CuotasTable = () => {
   };
 
   const abrirModalVer = (url) => {
-    setComprobanteUrl(url);
+    setComprobanteUrl(resolveComprobanteUrl(url));
     setShowVerModal(true);
   };
 
@@ -225,7 +245,9 @@ const CuotasTable = () => {
           <Modal.Title className="fw-bold">Comprobante de pago</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ textAlign: "center" }}>
-          {comprobanteUrl.endsWith(".pdf") ? (
+          {!comprobanteUrl ? (
+            <p className="text-muted mb-0">No se encontro el comprobante.</p>
+          ) : isPdfComprobante(comprobanteUrl) ? (
             <embed
               src={comprobanteUrl}
               type="application/pdf"

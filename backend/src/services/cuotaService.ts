@@ -28,6 +28,13 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+function saveComprobanteLocal(fileName: string, buffer: Buffer): string {
+  const uploadDir = path.resolve(process.cwd(), 'uploads', 'comprobantes-cuotas');
+  fs.mkdirSync(uploadDir, { recursive: true });
+  fs.writeFileSync(path.join(uploadDir, fileName), buffer);
+  return `/uploads/comprobantes-cuotas/${fileName}`;
+}
+
 // ------------------------------------------------------------------
 // 🧮 Función auxiliar: determinar estado según vencimiento
 // ------------------------------------------------------------------
@@ -91,14 +98,18 @@ export async function enviarComprobante(
   const { data, error } = await supabase.storage
     .from(bucket)
     .upload(fileName, buffer, {
-      contentType: file.mimetype,
+      contentType: file.mimetype || 'application/octet-stream',
       upsert: true,
     });
 
-  if (error) throw new Error(`Error al subir comprobante: ${error.message}`);
-
-  const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(fileName);
-  const publicUrl = publicData.publicUrl;
+  let publicUrl: string;
+  if (error) {
+    console.warn(`[Cuotas] No se pudo subir comprobante a Supabase (${bucket}): ${error.message}. Se guarda localmente.`);
+    publicUrl = saveComprobanteLocal(fileName, buffer);
+  } else {
+    const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(fileName);
+    publicUrl = publicData.publicUrl;
+  }
 
 
   await prisma.comprobante.upsert({

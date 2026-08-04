@@ -2,21 +2,21 @@ import React, { useState, useEffect } from "react";
 import { Navbar, Nav, NavDropdown, Image, Container } from "react-bootstrap";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import logoUniversal from "../assets/logoUniversal.png";
+import { useAuth } from "../hooks/useAuth";
+import { clearAuth, getRole, getUser } from "../helpers/auth";
 
 function Header() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { role, logout } = useAuth();
 
   const [fotoPerfil, setFotoPerfil] = useState(logoUniversal);
   const [rol, setRol] = useState(null);
 
   useEffect(() => {
-    const usuarioStr = localStorage.getItem("usuario");
-    if (usuarioStr) {
-      const usuario = JSON.parse(usuarioStr);
-      setRol(usuario?.rol || usuario?.role || null);
-    }
-  }, []);
+    const usuario = getUser();
+    setRol(getRole() || usuario?.role || usuario?.rol || role || null);
+  }, [role]);
 
   const actualizarFoto = () => {
     const usuarioStr = localStorage.getItem("usuario");
@@ -40,21 +40,24 @@ function Header() {
     else navigate("/inicio");
   };
 
-  const handleContacto = () => navigate("/contacto");
-
   const handleLogout = () => {
-    localStorage.removeItem("usuario");
-    localStorage.removeItem("rol");
+    logout?.();
+    clearAuth();
     navigate("/");
   };
 
-  const enInicio = ["/inicio", "/inicioSocio"].includes(location.pathname);
   const enLogin = location.pathname === "/";
 
   return (
     <Navbar className="navbar-custom" expand="lg" collapseOnSelect>
       <Container fluid>
-        <Navbar.Brand className="d-flex align-items-center">
+        <Navbar.Brand
+          className="d-flex align-items-center"
+          onClick={() => {
+            if (!enLogin) handleInicio();
+          }}
+          style={{ cursor: enLogin ? "default" : "pointer" }}
+        >
           <Image src={logoUniversal} height="70" className="me-2" />
           <span className="d-none d-lg-inline">
             Asociación Cultural y Deportiva Universal
@@ -67,14 +70,6 @@ function Header() {
           <Nav className="ms-auto gap-3 align-items-center">
             {rol === "SOCIO" && !enLogin && (
               <>
-                {!enInicio && (
-                  <Nav.Link as="span" onClick={handleInicio} style={{ cursor: "pointer" }}>
-                    Inicio
-                  </Nav.Link>
-                )}
-                <Nav.Link as="span" onClick={handleContacto} style={{ cursor: "pointer" }}>
-                  Contacto
-                </Nav.Link>
                 <Nav.Link as={Link} to="/perfil">
                   Ver mi perfil
                 </Nav.Link>
@@ -83,24 +78,9 @@ function Header() {
 
             {rol === "ADMINISTRATIVO" && !enLogin && (
               <>
-                {!enInicio && (
-                  <Nav.Link as="span" onClick={handleInicio} style={{ cursor: "pointer" }}>
-                    Inicio
-                  </Nav.Link>
-                )}
                 <Nav.Link as={Link} to="/perfil">
                   Ver mi perfil
                 </Nav.Link>
-              </>
-            )}
-
-            {rol === "ADMIN" && !enLogin && (
-              <>
-                {!enInicio && (
-                  <Nav.Link as="span" onClick={handleInicio} style={{ cursor: "pointer" }}>
-                    Inicio
-                  </Nav.Link>
-                )}
               </>
             )}
 

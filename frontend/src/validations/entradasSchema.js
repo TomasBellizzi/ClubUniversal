@@ -1,5 +1,14 @@
 import * as Yup from "yup";
 
+const formatosPermitidos = ["png", "jpg", "jpeg", "pdf"];
+const mimePermitidos = ["image/jpeg", "image/jpg", "image/png", "application/pdf"];
+
+function esArchivoPermitido(file) {
+  if (!file) return false;
+  const extension = file.name?.split(".").pop()?.toLowerCase();
+  return mimePermitidos.includes(file.type) || formatosPermitidos.includes(extension);
+}
+
 export const entradaSchema = Yup.object().shape({
   cantidad: Yup.number()
     .min(1, "La cantidad debe ser al menos 1")
@@ -11,6 +20,6 @@ export const entradaSchema = Yup.object().shape({
     )
     .test("fileType", "Formato no soportado", (value) =>
       !value ||
-      ["image/jpeg", "image/png", "application/pdf"].includes(value[0]?.type)
+      esArchivoPermitido(value[0])
     ),
 }); 

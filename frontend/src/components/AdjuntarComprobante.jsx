@@ -7,6 +7,13 @@ import { yupResolver } from '@hookform/resolvers/yup';
 
 const MAX_MB = 2;
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'pdf'];
+
+function isAllowedFile(file) {
+  if (!file) return false;
+  const extension = file.name?.split('.').pop()?.toLowerCase();
+  return ALLOWED_TYPES.includes(file.type) || ALLOWED_EXTENSIONS.includes(extension);
+}
 
 const schema = yup.object({
   archivo: yup
@@ -21,7 +28,7 @@ const schema = yup.object({
     })
     .test('type', 'Formato permitido: JPG, PNG o PDF', (value) => {
       if (!value || !value[0]) return false;
-      return ALLOWED_TYPES.includes(value[0].type);
+      return isAllowedFile(value[0]);
     }),
 });
 
@@ -65,7 +72,7 @@ export default function AdjuntarComprobante({ show, onHide, cuotaId, onAdjuntar 
             <Form.Label>Archivo (JPG, PNG o PDF · máx. {MAX_MB}MB)</Form.Label>
             <Form.Control
               type="file"
-              accept={ALLOWED_TYPES.join(',')}
+              accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
               {...register('archivo')}
               isInvalid={!!errors.archivo}
             />

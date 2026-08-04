@@ -39,7 +39,10 @@ function App() {
             {/* Públicas */}
             <Route path="/" element={<IniciarSesion />} />
             <Route path="/registro" element={<Registrarse />} />
-            <Route path="/inicio" element={<HomePage />} />
+            <Route
+              path="/inicio"
+              element={<PrivateRoute allowedRoles={['ADMINISTRATIVO', 'ADMIN']}><HomePage /></PrivateRoute>}
+            />
             <Route path="/contacto" element={<Contacto />} />
 
             {/* SOCIO */}
@@ -84,6 +87,11 @@ function App() {
               path="/cuotas-admin"
               element={<PrivateRoute allowedRoles={['ADMINISTRATIVO', 'ADMIN']}><CuotasAdminPage /></PrivateRoute>}
             />
+            <Route
+              path="/generar-cuota"
+              element={<PrivateRoute allowedRoles={['ADMINISTRATIVO', 'ADMIN']}><GenerarCuota /></PrivateRoute>}
+            />
+
             {/* SOLO ADMIN */}
             <Route
               path="/administrativos"
@@ -92,10 +100,6 @@ function App() {
             <Route
               path="/crear-administrativo"
               element={<PrivateRoute allowedRoles={['ADMIN']}><CrearAdministrativos /></PrivateRoute>}
-            />
-            <Route
-              path="/generar-cuota"
-              element={<PrivateRoute allowedRoles={['ADMIN']}><GenerarCuota /></PrivateRoute>}
             />
 
           </Routes>

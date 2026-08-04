@@ -57,7 +57,7 @@ router.get(
 router.post(
   "/admin/generar",
   authenticate,
-  authorize("ADMIN"),
+  authorize("ADMIN", "ADMINISTRATIVO"),
   validate(cuotaValidation.createCuotaSchema),
   cuotaController.generarCuotas
 );
