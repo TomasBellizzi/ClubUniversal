@@ -41,9 +41,6 @@ function ActividadesSocio() {
           }),
         ]);
 
-        console.log("Actividades (raw):", resActs.data);
-        console.log("Inscripciones (raw):", resInsc.data);
-
         setActividades(resActs?.data?.actividades ?? []);
         setInscripciones(resInsc?.data ?? []);
       } catch (e) {

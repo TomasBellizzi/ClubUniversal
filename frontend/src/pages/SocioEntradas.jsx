@@ -103,9 +103,7 @@ export default function SocioEntradas() {
           usuario,
           eventoSeleccionado
         );
-        if (emailResult.success)
-          console.log("Email enviado exitosamente");
-        else console.warn("Error email:", emailResult.message);
+        if (!emailResult.success) console.warn("Error email:", emailResult.message);
       } catch (error) {
         console.error("Error en email:", error);
       }
@@ -264,7 +262,7 @@ export default function SocioEntradas() {
                               <small className="text-muted d-block">
                                 <i className="bi bi-geo-alt me-1"></i>
                                 {entrada.evento?.actividad
-                                  ? `${entrada.evento.actividad.nombre} - ${entrada.evento.cancha?.nombre || "Cancha sin asignar"}`
+                                  ? `${entrada.evento.actividad.nombre}${entrada.evento.ubicacion ? ` - ${entrada.evento.ubicacion}` : ""}`
                                   : "Sin actividad asignada"}
                               </small>
                             </div>
@@ -309,7 +307,7 @@ export default function SocioEntradas() {
                           <small className="text-muted d-block">
                             <i className="bi bi-geo-alt me-1"></i>
                             {evento.actividad
-                              ? `${evento.actividad.nombre} - ${evento.cancha?.nombre || "Cancha sin asignar"}`
+                              ? `${evento.actividad.nombre}${evento.ubicacion ? ` - ${evento.ubicacion}` : ""}`
                               : "Sin actividad asignada"}
                           </small>
                           <small className="text-muted d-block">

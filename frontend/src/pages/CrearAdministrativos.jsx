@@ -16,6 +16,7 @@ function CrearAdministrativo() {
   const [successMsg, setSuccessMsg] = useState('');
 
   const BACKURL = import.meta.env.VITE_API_URL
+  const token = localStorage.getItem("token");
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -28,7 +29,7 @@ function CrearAdministrativo() {
     }
 
     try {
-      const response = await axios.post(`${BACKURL}/api/auth/register`, {
+      await axios.post(`${BACKURL}/api/auth/register/administrativo`, {
         email,
         password,
         role: 'ADMINISTRATIVO',
@@ -37,11 +38,10 @@ function CrearAdministrativo() {
           apellido,
           dni,
         },
-      });
+      }, { headers: { Authorization: `Bearer ${token}` } });
 
       setSuccessMsg('✅ Administrativo registrado con éxito');
       setErrorMsg('');
-      console.log('Respuesta backend:', response.data);
 
       // limpiar formulario
       setNombre('');

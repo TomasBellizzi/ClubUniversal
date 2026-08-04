@@ -4,7 +4,7 @@ import { Form, Button, Modal, Spinner, Badge } from "react-bootstrap";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "../components/Header";
 import { api } from "../service/api";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../hooks/useAuth";
 import logoUniversal from "../assets/logoUniversal.png";
 
 const toUiEstado = (estadoDb) => {

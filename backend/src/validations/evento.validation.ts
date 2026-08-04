@@ -10,7 +10,7 @@ export const createEventoSchema = z.object({
   capacidad: z.preprocess((val) => Number(val), z.number().int().positive("Capacidad debe ser positiva")),
   precioEntrada: z.preprocess((val) => Number(val), z.number().positive("Precio debe ser positivo")),
   actividadId: z.preprocess((val) => Number(val), z.number().int().positive("Debe seleccionar una actividad")),
-  canchaId: z.preprocess((val) => Number(val), z.number().int().positive("Debe seleccionar una cancha")),
+  ubicacion: z.string().optional(),
   descripcion: z.string().optional(),
 });
 
@@ -24,7 +24,7 @@ export const updateEventoSchema = z.object({
   capacidad: z.preprocess((val) => Number(val), z.number().int().positive("Capacidad debe ser positiva")).optional(),
   precioEntrada: z.preprocess((val) => Number(val), z.number().positive("Precio debe ser positivo")).optional(),
   actividadId: z.preprocess((val) => Number(val), z.number().int().positive("Debe seleccionar una actividad")).optional(),
-  canchaId: z.preprocess((val) => Number(val), z.number().int().positive("Debe seleccionar una cancha")).optional(),
+  ubicacion: z.string().optional(),
   descripcion: z.string().optional(),
 });
 

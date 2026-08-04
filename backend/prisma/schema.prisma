@@ -17,9 +17,8 @@ model Evento {
   capacidad     Int
   precioEntrada Float
   actividadId   Int
-  canchaId      Int
   actividad     Actividad   @relation(fields: [actividadId], references: [id])
-  cancha        Cancha      @relation(fields: [canchaId], references: [id])
+  ubicacion     String?
   descripcion   String
   createdAt     DateTime  @default(now())
   entradas      Entrada[]
@@ -55,7 +54,6 @@ model Socio {
   actividades     ActividadSocio[]
   Cuota           Cuota[]
   entradas        Entrada[]
-  reservas        Reserva[]
   usuario         Usuario      @relation(fields: [usuarioId], references: [id])
 }
 
@@ -85,25 +83,9 @@ model Actividad {
   monto           Float
   activo          Boolean           @default(true)
   createdAt       DateTime          @default(now())
-  clases          Clase[]
   cuotaXactividad cuotaXactividad[]
   socios          ActividadSocio[]
-  canchas         Cancha[]
   eventos         Evento[]
-}
-
-
-model Clase {
-  id          Int          @id @default(autoincrement())
-  diaSemana   DiaSemana
-  horaInicio  String
-  horaFin     String
-  activo      Boolean      @default(true)
-  actividadId Int
-  profesorId  Int?
-  createdAt   DateTime     @default(now())
-  actividad   Actividad    @relation(fields: [actividadId], references: [id])
-  profesor    Profesor?    @relation(fields: [profesorId], references: [id])
 }
 
 model Cuota {
@@ -135,16 +117,6 @@ model Comprobante {
   @@unique([cuotaId, activo])
 }
 
-model Profesor {
-  id        Int      @id @default(autoincrement())
-  nombre    String
-  apellido  String
-  email     String   @unique
-  activo    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  clases    Clase[]
-}
-
 model ActividadSocio {
   id          Int   @id @default(autoincrement())
   actividadId Int
@@ -166,51 +138,10 @@ model cuotaXactividad {
   @@unique([cuotaId, actividadId])
 }
 
-model Reserva {
-  id        Int           @id @default(autoincrement())
-  cancha    String
-  deporte   String
-  fecha     DateTime      @db.Date
-  hora      String
-  estado    EstadoReserva @default(ACTIVA)
-  socioId   Int
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  socio     Socio         @relation(fields: [socioId], references: [id])
-
-  @@unique([cancha, fecha, hora, estado], name: "unique_active_reservation")
-  @@index([socioId])
-  @@index([fecha])
-}
-
-model Cancha {
-  id            Int        @id @default(autoincrement())
-  nombre        String
-  descripcion   String?
-  activa        Boolean    @default(true)
-  actividadId   Int
-  actividad     Actividad  @relation(fields: [actividadId], references: [id])
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  eventos       Evento[]
-
-  @@index([actividadId])
-}
-
 enum Sexo {
   MASCULINO
   FEMENINO
   OTRO
-}
-
-enum DiaSemana {
-  LUNES
-  MARTES
-  MIERCOLES
-  JUEVES
-  VIERNES
-  SABADO
-  DOMINGO
 }
 
 enum estado_cuota {
@@ -233,12 +164,6 @@ enum Mes {
   OCTUBRE
   NOVIEMBRE
   DICIEMBRE
-}
-
-enum EstadoReserva {
-  ACTIVA
-  CANCELADA
-  COMPLETADA
 }
 
 enum FormaDePago {

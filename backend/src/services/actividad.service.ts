@@ -1,30 +1,5 @@
 import prisma from "../config/prisma";
 import { Actividad, CreateActividadRequest, UpdateActividadRequest } from "../types/actividad";
-import { Clase } from "../types/clase";
-
-// Mapeo de Prisma a tipo Clase
-function mapClasePrismaToClase(clase: any): Clase {
-  return {
-    id: clase.id,
-    diaSemana: clase.diaSemana,
-    horaInicio: clase.horaInicio,
-    horaFin: clase.horaFin,
-    activo: clase.activo,
-    actividadId: clase.actividadId,
-    profesorId: clase.profesorId ?? undefined,
-    createdAt: clase.createdAt,
-    profesor: clase.profesor
-      ? {
-          id: clase.profesor.id,
-          nombre: clase.profesor.nombre,
-          apellido: clase.profesor.apellido,
-          email: clase.profesor.email,
-          activo: clase.profesor.activo,
-          createdAt: clase.profesor.createdAt,
-        }
-      : undefined,
-  };
-}
 
 // Mapeo de Prisma a tipo Actividad
 function mapActividadPrismaToActividad(actividad: any): Actividad {
@@ -34,7 +9,6 @@ function mapActividadPrismaToActividad(actividad: any): Actividad {
     monto: actividad.monto,
     activo: actividad.activo,
     createdAt: actividad.createdAt,
-    clases: actividad.clases?.map(mapClasePrismaToClase) ?? [],
   };
 }
 
@@ -42,7 +16,6 @@ function mapActividadPrismaToActividad(actividad: any): Actividad {
 export async function getAllActividades(): Promise<Actividad[]> {
   const actividades = await prisma.actividad.findMany({
     orderBy: { createdAt: "desc" },
-    include: { clases: { include: { profesor: true } } },
   });
   return actividades.map(mapActividadPrismaToActividad);
 }
@@ -51,7 +24,6 @@ export async function getAllActividades(): Promise<Actividad[]> {
 export async function getActividadById(id: number): Promise<Actividad> {
   const actividad = await prisma.actividad.findUnique({
     where: { id },
-    include: { clases: { include: { profesor: true } } },
   });
   if (!actividad) throw new Error("Actividad no encontrada");
   return mapActividadPrismaToActividad(actividad);
@@ -60,7 +32,7 @@ export async function getActividadById(id: number): Promise<Actividad> {
 // Crear actividad
 export async function createActividad(data: CreateActividadRequest): Promise<Actividad> {
   const actividad = await prisma.actividad.create({ data });
-  return mapActividadPrismaToActividad({ ...actividad, clases: [] });
+  return mapActividadPrismaToActividad(actividad);
 }
 
 // Actualizar actividad
@@ -68,7 +40,6 @@ export async function updateActividad(id: number, data: UpdateActividadRequest):
   const actividad = await prisma.actividad.update({
     where: { id },
     data,
-    include: { clases: { include: { profesor: true } } },
   });
   return mapActividadPrismaToActividad(actividad);
 }
@@ -96,12 +67,7 @@ export async function deleteActividad(id: number): Promise<void> {
       where: { actividadId: id },
     });
 
-    // 4) Borrar clases de la actividad
-    await tx.clase.deleteMany({
-      where: { actividadId: id },
-    });
-
-    // 5) Borrar relaciones many-to-many / auxiliares
+    // 4) Borrar relaciones many-to-many / auxiliares
     await tx.actividadSocio.deleteMany({
       where: { actividadId: id },
     });
@@ -110,12 +76,7 @@ export async function deleteActividad(id: number): Promise<void> {
       where: { actividadId: id },
     });
 
-    // 6) Borrar canchas de la actividad (después de eventos)
-    await tx.cancha.deleteMany({
-      where: { actividadId: id },
-    });
-
-    // 7) Finalmente, borrar la actividad
+    // 5) Finalmente, borrar la actividad
     await tx.actividad.delete({
       where: { id },
     });

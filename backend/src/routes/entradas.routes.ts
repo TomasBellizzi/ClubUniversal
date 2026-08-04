@@ -16,11 +16,12 @@ router.get('/:id',
 
 router.post('/',
     authenticate,
+    authorize('ADMIN', 'ADMINISTRATIVO'),
     validate(createEntradaSchema), entradaController.createEntrada);
 
 router.put('/:id', 
     authenticate,
-    authorize('ADMIN'),
+    authorize('ADMIN', 'ADMINISTRATIVO'),
     validate(updateEntradaSchema) , entradaController.updateEntrada);
 
 export const entradaRoutes = router;

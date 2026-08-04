@@ -9,7 +9,6 @@ import { eventoSchema } from '../validations/eventosSchema';
 
 export default function AdminEventos() {
   const [actividades, setActividades] = useState([]);
-  const [canchas, setCanchas] = useState([]);
   const [actividadSeleccionada, setActividadSeleccionada] = useState(""); // string en el select
 
   const [eventos, setEventos] = useState([]);
@@ -67,26 +66,6 @@ export default function AdminEventos() {
       console.error("Error cargando actividades:", error);
     }
   };
-
-  useEffect(() => {
-    const fetchCanchas = async () => {
-      if (!actividadSeleccionada) {
-        setCanchas([]);
-        return;
-      }
-      try {
-        const res = await fetch(
-          `${BACKURL}/api/canchas/actividad/${actividadSeleccionada}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const data = await res.json();
-        setCanchas(data.data || data.canchas || []);
-      } catch (error) {
-        console.error("Error cargando canchas:", error);
-      }
-    };
-    fetchCanchas();
-  }, [actividadSeleccionada, token]);
 
   useEffect(() => {
     fetchEventos();
@@ -184,15 +163,10 @@ export default function AdminEventos() {
         alert("Debe seleccionar una actividad");
         return;
       }
-      if (!data.canchaId) {
-        alert("Debe seleccionar una cancha");
-        return;
-      }
 
       const payload = {
         ...data,
         actividadId: Number(actividadSeleccionada),
-        canchaId: Number(data.canchaId),
       };
 
       const res = await fetch(`${BACKURL}/api/eventos`, {
@@ -209,7 +183,7 @@ export default function AdminEventos() {
         throw new Error(result.message || result.error || "Error al crear evento");
       }
 
-      // mejor recargar para traer relaciones actividad/cancha
+      // mejor recargar para traer relaciones y totales
       await fetchEventos();
       setShowModal(false);
       reset();
@@ -236,15 +210,10 @@ export default function AdminEventos() {
         alert("Debe seleccionar una actividad");
         return;
       }
-      if (!data.canchaId) {
-        alert("Debe seleccionar una cancha");
-        return;
-      }
 
       const payload = {
         ...data,
         actividadId: actividadIdNum,
-        canchaId: Number(data.canchaId),
       };
 
       const res = await fetch(
@@ -296,7 +265,7 @@ export default function AdminEventos() {
       capacidad: "",
       precioEntrada: "",
       descripcion: "",
-      canchaId: "",
+      ubicacion: "",
     });
     setShowModal(true);
   };
@@ -305,7 +274,7 @@ export default function AdminEventos() {
     setModoEditar(true);
     setModoAgregar(false);
     setEventoSeleccionado(evento);
-    // setear actividad seleccionada para cargar canchas correctas
+    // setear actividad seleccionada para editar el evento
     setActividadSeleccionada(String(evento.actividadId || ""));
     reset({
       nombre: evento.nombre,
@@ -315,7 +284,7 @@ export default function AdminEventos() {
       capacidad: evento.capacidad,
       precioEntrada: evento.precioEntrada,
       descripcion: evento.descripcion,
-      canchaId: evento.canchaId, // preseleccionar cancha
+      ubicacion: evento.ubicacion || "",
     });
     setShowModal(true);
   };
@@ -491,10 +460,10 @@ export default function AdminEventos() {
                         <i className="bi bi-clock me-1"></i>
                         {evento.horaInicio}hs - {evento.horaFin}hs
                       </small>
-                      {evento.cancha?.nombre && (
+                      {evento.ubicacion && (
                         <small className="text-muted d-block">
                           <i className="bi bi-geo-alt me-1"></i>
-                          {evento.cancha.nombre}
+                          {evento.ubicacion}
                         </small>
                       )}
                     </div>
@@ -698,25 +667,18 @@ export default function AdminEventos() {
                     </Form.Group>
                   </Col>
 
-                  {/* Cancha */}
+                  {/* UbicaciÃ³n */}
                   <Col md={6}>
                     <Form.Group>
-                      <Form.Label>Cancha</Form.Label>
-                      <Form.Select
-                        {...register("canchaId", {
-                          required: "Debe seleccionar una cancha",
-                        })}
-                        isInvalid={!!errors.canchaId}
-                      >
-                        <option value="">Seleccione una cancha</option>
-                        {canchas.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nombre}
-                          </option>
-                        ))}
-                      </Form.Select>
+                      <Form.Label>UbicaciÃ³n</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="SalÃ³n, gimnasio, sede, etc."
+                        {...register("ubicacion")}
+                        isInvalid={!!errors.ubicacion}
+                      />
                       <Form.Control.Feedback type="invalid">
-                        {errors.canchaId?.message}
+                        {errors.ubicacion?.message}
                       </Form.Control.Feedback>
                     </Form.Group>
                   </Col>
@@ -775,7 +737,7 @@ export default function AdminEventos() {
                   <p><strong>Fecha:</strong> {formatearFecha(eventoSeleccionado.fecha)}</p>
                   <p><strong>Horario:</strong> {eventoSeleccionado.horaInicio} - {eventoSeleccionado.horaFin}</p>
                   <p><strong>Actividad:</strong> {eventoSeleccionado.actividad?.nombre || '-'}</p>
-                  <p><strong>Cancha:</strong> {eventoSeleccionado.cancha?.nombre || '-'}</p>
+                  <p><strong>UbicaciÃ³n:</strong> {eventoSeleccionado.ubicacion || '-'}</p>
                   <p><strong>Capacidad:</strong> {eventoSeleccionado.capacidad}</p>
                   <p><strong>Entradas vendidas:</strong> {eventoSeleccionado.entradasVendidas || 0}</p>
                   <p><strong>Precio Entrada:</strong> ${eventoSeleccionado.precioEntrada}</p>

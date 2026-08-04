@@ -11,7 +11,6 @@ export async function getCuotasSocio(
 ) {
   try {
     const socioIdRaw = (req as any).user?.socioId; // viene del token JWT
-    console.log('[Cuotas] socioId del token:', socioIdRaw);
     const socioId = Number(socioIdRaw);
     if (!socioId || Number.isNaN(socioId)) {
       return res.status(400).json({ cuotas: [] as any });
@@ -21,7 +20,6 @@ export async function getCuotasSocio(
   } catch (error) {
     const msg = (error as any)?.message || String(error);
     console.error('[Cuotas] Error en getCuotasSocio:', msg);
-    res.setHeader('X-Error-Message', msg);
     return res.status(500).json({ cuotas: [] });
   }
 }
@@ -33,10 +31,14 @@ export async function enviarComprobante(
 ) {
   try {
     const cuotaId = Number(req.params.cuotaId);
+    const socioId = Number((req as any).user?.socioId);
     const file = req.file;
     if (!file) return res.status(400).json({ success: false, message: 'No se proporcionó archivo' });
+    if (!socioId || Number.isNaN(socioId)) {
+      return res.status(400).json({ success: false, message: 'Socio no asociado al usuario' });
+    }
 
-    const response = await cuotaService.enviarComprobante(cuotaId, file);
+    const response = await cuotaService.enviarComprobante(cuotaId, socioId, file);
     res.json(response);
   } catch (error) {
     next(error);
@@ -95,8 +97,6 @@ export async function generarCuotas(
 ) {
   try {
     const body = req.body;
-
-    console.log('[Generar cuotas] Datos recibidos:', body);
 
     const result = await cuotaService.generarCuotas({
       actividadId: body.actividadId ?? undefined, // opcional

@@ -1,7 +1,5 @@
 import prisma from "../config/prisma";
 import { ActividadSocio } from "../types/ActividadSocio";
-import { Profesor } from "../types/profesor";
-import { Actividad } from "../types/actividad";
 import { CreateActividadSocioRequest, UpdateActividadSocioRequest } from "../types/ActividadSocio";
 
 

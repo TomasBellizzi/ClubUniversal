@@ -1,11 +1,17 @@
-import { CreateEntradaRequest, UpdateEntradaRequest, EntradaListResponse, EntradaResponse } from "../types/entradas";
+import { CreateEntradaRequest, UpdateEntradaRequest, EntradaResponse } from "../types/entradas";
 import { Request, Response, NextFunction} from 'express';
 import * as entradaService from '../services/entradas.service';
-import { parse } from "path";
 
 export async function getAllEntradas(req: Request, res: Response) {
   try {
     const { socioId } = req.query;
+    const requester = req.user;
+
+    if (requester?.role === "SOCIO") {
+      if (!requester.socioId) return res.status(400).json({ error: "Socio no asociado al usuario" });
+      const entradas = await entradaService.getEntradasBySocioId(requester.socioId);
+      return res.json({ entradas });
+    }
 
     if (socioId) {
       const entradas = await entradaService.getEntradasBySocioId(Number(socioId));
@@ -62,7 +68,14 @@ export async function updateEntrada(
 ) {
   try {
     const { id } = req.params;
-    const updatedEntrada = await entradaService.getEntradaById(parseInt(id));
+    const entradaId = parseInt(id, 10);
+    if (Number.isNaN(entradaId)) {
+      const error = new Error("ID parameter is invalid");
+      (error as any).statusCode = 400;
+      throw error;
+    }
+
+    const updatedEntrada = await entradaService.updateEntrada(entradaId, req.body);
 
     res.json({
       entrada: updatedEntrada,

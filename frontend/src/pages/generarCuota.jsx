@@ -34,7 +34,6 @@ function CuotasAdmin() {
   const [actividades, setActividades] = useState([]);
   const [socios, setSocios] = useState([]);
   const [preview, setPreview] = useState([]);
-  const [generadas, setGeneradas] = useState([]);
 
   // Determinar mes actual y su último día
   const ahora = new Date();
@@ -146,7 +145,6 @@ function CuotasAdmin() {
       });
 
       setPreview(Array.isArray(data?.previewItems) ? data.previewItems : []);
-      setGeneradas([]);
     } catch (err) {
       console.error(err);
       alert("No se pudo generar la previsualización.");
@@ -167,7 +165,6 @@ function CuotasAdmin() {
       });
 
       setPreview([]);
-      setGeneradas([]);
       alert(
         `Procesados: ${data?.processedSocios || 0} · Creadas: ${data?.created || 0} · Actualizadas: ${
           data?.updated || 0

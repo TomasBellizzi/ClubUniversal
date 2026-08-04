@@ -66,9 +66,10 @@ export async function getCuotasSocio(socioId: number): Promise<CuotaSocioDTO[]> 
 // Subida de comprobante (SOCIO)
 export async function enviarComprobante(
   cuotaId: number,
+  socioId: number,
   file: Express.Multer.File
 ): Promise<EnviarComprobanteResponse> {
-  const cuota = await prisma.cuota.findUnique({ where: { id: cuotaId } });
+  const cuota = await prisma.cuota.findFirst({ where: { id: cuotaId, socio_id: socioId } });
   if (!cuota) throw new Error('Cuota no encontrada');
 
   // Validar formato y tamaño

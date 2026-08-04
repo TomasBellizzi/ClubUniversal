@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { getAllSocios, getSocioByDni, getSocioCompletoByDni, updateSocio, updateSocioEstado } from '../controllers/socioController';
 import multer from 'multer';
 import path from 'path';
+import { authenticate, authorize } from '../middlewares/auth.middleware';
 
 //para la carga de fotos de perfil
 const storage = multer.diskStorage({
@@ -21,11 +22,13 @@ const upload = multer({ storage });
 const router = Router();
 
 
-router.get('/dni/:dni', getSocioByDni);
-router.get('/dni/:dni/full', getSocioCompletoByDni);
-router.get('/', getAllSocios);
-router.put('/', upload.single('foto'), updateSocio);
-router.put('/:id/estado', updateSocioEstado);
+router.use(authenticate);
+
+router.get('/dni/:dni', authorize('ADMIN', 'ADMINISTRATIVO'), getSocioByDni);
+router.get('/dni/:dni/full', authorize('ADMIN', 'ADMINISTRATIVO'), getSocioCompletoByDni);
+router.get('/', authorize('ADMIN', 'ADMINISTRATIVO'), getAllSocios);
+router.put('/', authorize('ADMIN', 'ADMINISTRATIVO'), upload.single('foto'), updateSocio);
+router.put('/:id/estado', authorize('ADMIN', 'ADMINISTRATIVO'), updateSocioEstado);
 
 export default router;
 

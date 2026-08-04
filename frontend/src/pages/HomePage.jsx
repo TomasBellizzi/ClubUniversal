@@ -7,20 +7,13 @@ function HomePageAdmin() {
   const usuarioStr = localStorage.getItem("usuario");
   const usuario = usuarioStr ? JSON.parse(usuarioStr) : null;
   const role = usuario?.rol || usuario?.role || null;
-
-  console.log("Rol detectado:", role);
-
   // Lista base de opciones (todas)
   const opcionesBase = [
     { texto: 'Cuotas', ruta: '/cuotas-admin' },
-    { texto: 'Reserva Canchas', ruta: '/canchas' },
-    { texto: 'Reservas de Socios', ruta: '/misReservasAdmin' },
     { texto: 'Eventos', ruta: '/eventos' },
     { texto: 'Actividades', ruta: '/actividades' },
     { texto: 'Administrativos', ruta: '/administrativos', requiereAdmin: true },
     { texto: 'Socios', ruta: '/socios' },
-    { texto: 'Profesores', ruta: '/profesores', requiereAdmin: true },
-    { texto: 'Canchas', ruta: '/gestionCanchas' },
   ];
 
   // Filtrar según rol

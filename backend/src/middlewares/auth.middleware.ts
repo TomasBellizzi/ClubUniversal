@@ -22,7 +22,10 @@ export function authenticate(req: Request, res: Response, next: NextFunction) {
             return res.status(401).json({ success: false, message: 'Token no proporcionado' });
         }
         const token = authHeader.split(' ')[1];
-        const secret = process.env.JWT_SECRET || 'mi_secreto';
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            return res.status(500).json({ success: false, message: 'JWT_SECRET no configurado' });
+        }
         const decoded = jwt.verify(token, secret) as any;
         req.user = {
             id: decoded.id,

@@ -6,13 +6,10 @@ export function handleError(err: any, req: Request, res: Response, next: NextFun
   const statusCode = Number(err?.statusCode) || 500;
   console.error(`[${timestamp}] Error:`, message);
   if (stack) console.error(stack);
-  try {
-    res.setHeader('X-Error-Message', message);
-    if (stack) res.setHeader('X-Error-Stack', stack.substring(0, 2048));
-  } catch {}
+
   res.status(statusCode).json({
-    error: 'Internal server error',
-    message,
+    error: statusCode >= 500 ? 'Internal server error' : message,
+    ...(process.env.NODE_ENV !== 'production' ? { message } : {}),
     timestamp,
   });
 }

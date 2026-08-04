@@ -3,7 +3,11 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { LoginRequest } from '../types/auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto';
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET no configurado');
+  return secret;
+}
 
 export async function login(data: LoginRequest) {
   const { emailOdni, password } = data;
@@ -54,7 +58,7 @@ export async function login(data: LoginRequest) {
   // Generar token
   const token = jwt.sign(
     { id: usuario.id, socioId: usuario.socio?.id, role: usuario.rol.toUpperCase() },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: "1h" }
   );
 

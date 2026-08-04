@@ -11,7 +11,6 @@ export async function getAllEntradas(): Promise<Entrada[]> {
       evento: {
         include: {
           actividad: true,
-          cancha: true,
         },
       },
     },
@@ -28,7 +27,6 @@ export async function getEntradaById(id: number): Promise<Entrada> {
       evento: {
         include: {
           actividad: true,
-          cancha: true,
         },
       },
     },
@@ -75,7 +73,6 @@ export async function createEntrada(entradaData: CreateEntradaRequest): Promise<
       evento: {
         include: {
           actividad: true,
-          cancha: true,
         },
       },
     },
@@ -98,7 +95,6 @@ export async function updateEntrada(
         evento: {
           include: {
             actividad: true,
-            cancha: true,
           },
         },
       },
@@ -127,7 +123,6 @@ export async function getEntradasBySocioId(socioId: number): Promise<Entrada[]> 
       evento: {
         include: {
           actividad: true,
-          cancha: true,
         },
       },
     },

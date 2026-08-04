@@ -7,16 +7,6 @@ import '../styles/HomePageUser.css';
 function HomePageUser() {
   const opciones = [
     {
-      texto: 'Reservar Cancha',
-      ruta: '/canchasSocio',
-      subtitulo: '(consultar disponibilidad y reservar turno)',
-    },
-    {
-      texto: 'Mis Reservas',
-      ruta: '/misReservas',
-      subtitulo: '(ver mis reservas de canchas)',
-    },
-    {
       texto: 'Mis entradas',
       ruta: '/entradasSocio',
       subtitulo: '(ver mis entradas, comprar entradas, ver próximos eventos)',

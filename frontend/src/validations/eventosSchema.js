@@ -32,10 +32,10 @@ export const eventoSchema = yup.object().shape({
     .typeError("Debe seleccionar una actividad")
     .required("La actividad es obligatoria"),
 
-  canchaId: yup
-    .number()
-    .typeError("Debe seleccionar una cancha")
-    .required("La cancha es obligatoria"),
+  ubicacion: yup
+    .string()
+    .max(120, "La ubicaciÃ³n no puede superar los 120 caracteres")
+    .nullable(),
 
   descripcion: yup
     .string()

@@ -1,6 +1,5 @@
 import { Entrada } from "./entradas";
 import { Actividad } from "./actividad";
-import { Cancha } from "./cancha";
 
 export interface Evento {
   id: number;
@@ -11,11 +10,10 @@ export interface Evento {
   capacidad: number;
   precioEntrada: number;
   actividadId: number;
-  canchaId: number;
+  ubicacion?: string | null;
   descripcion: string;
   createdAt?: Date;
   actividad?: Actividad;   
-  cancha?: Cancha;        
   entradas?: Entrada[];
 }
 
@@ -27,7 +25,7 @@ export interface CreateEventoRequest {
   capacidad: number;
   precioEntrada: number;
   actividadId: number;  
-  canchaId: number;     
+  ubicacion?: string | null;     
   descripcion: string;
 }
 
@@ -39,7 +37,7 @@ export interface UpdateEventoRequest {
   capacidad?: number;
   precioEntrada?: number;
   actividadId?: number;  
-  canchaId?: number;
+  ubicacion?: string | null;
   descripcion?: string;
 }
 

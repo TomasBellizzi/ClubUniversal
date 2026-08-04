@@ -39,8 +39,6 @@ function Login() {
       if (token && user) {
         setAuth(token, user.role, user);
 
-        console.log('Usuario guardado en localStorage:', user);
-
         switch (user.role) {
           case 'ADMINISTRATIVO':
           case 'ADMIN':

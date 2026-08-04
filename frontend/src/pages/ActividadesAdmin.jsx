@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Container, Row, Col, Button, Modal, Form, Card, Spinner, Alert, } from "react-bootstrap";
-import { PlusCircle, ArrowRight, Pencil, PersonPlus, InfoCircle, } from "react-bootstrap-icons";
-import { useNavigate } from "react-router-dom";
+import { PlusCircle, Pencil, PersonPlus, InfoCircle, } from "react-bootstrap-icons";
 import Header from "../components/Header";
 import axios from "axios";
 import { useForm } from "react-hook-form";
@@ -25,7 +24,6 @@ function ActividadesAdmin() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
-  const navigate = useNavigate();
   const token = localStorage.getItem("token");
 
   const BACKURL = import.meta.env.VITE_API_URL
@@ -336,16 +334,6 @@ function ActividadesAdmin() {
                                 <i className="bi bi-trash3-fill"></i> Eliminar
                               </Button>
                             )}
-
-                            <Button
-                              variant="dark"
-                              className="d-flex align-items-center gap-1"
-                              onClick={() =>
-                                navigate(`/clases/${actividad.id}`)
-                              }
-                            >
-                              Ver clases <ArrowRight />
-                            </Button>
                           </>
                         ) : (
                           <Button

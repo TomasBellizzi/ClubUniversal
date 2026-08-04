@@ -8,7 +8,6 @@ export async function getAllEventos(): Promise<Evento[]> {
   const eventos = await prisma.evento.findMany({
     include: {
       actividad: true,
-      cancha: true,
       entradas: {
         include: {
           socio: true,
@@ -54,7 +53,6 @@ export async function getEventoById(id: number): Promise<EventoResponse> {
     where: { id },
     include: {
       actividad: true,
-      cancha: true,
       entradas: { include: { socio: true, evento: true } },
     },
   });
@@ -88,12 +86,11 @@ export async function createEvento(eventoData: CreateEventoRequest): Promise<Eve
       capacidad: eventoData.capacidad,
       precioEntrada: eventoData.precioEntrada,
       actividadId: eventoData.actividadId,
-      canchaId: eventoData.canchaId,
+      ubicacion: eventoData.ubicacion,
       descripcion: eventoData.descripcion,
     },
     include: {
       actividad: true,
-      cancha: true,
       entradas: { include: { socio: true, evento: true } },
     },
   });
@@ -130,12 +127,11 @@ export async function updateEvento(
         capacidad: updateData.capacidad,
         precioEntrada: updateData.precioEntrada,
         actividadId: updateData.actividadId,
-        canchaId: updateData.canchaId,
+        ubicacion: updateData.ubicacion,
         descripcion: updateData.descripcion,
       },
       include: {
         actividad: true,
-        cancha: true,
         entradas: { include: { socio: true, evento: true } },
       },
     });

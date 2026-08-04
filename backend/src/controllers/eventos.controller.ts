@@ -43,7 +43,6 @@ export async function createEvento(
   next: NextFunction
 ) {
   try {
-    console.log("Request body:", req.body); 
     const newEvento = await eventoService.createEvento(req.body);
     res.status(201).json(newEvento);
   } catch (error) {
@@ -79,6 +78,7 @@ export async function registrarVenta(
 ) {
   try {
     const { eventoId, cantidad, socioId, formaDePago } = req.body;
+    const socioIdAutenticado = req.user?.role === "SOCIO" ? req.user.socioId ?? undefined : undefined;
 
     // Subida del comprobante si se adjuntó archivo
     let comprobanteUrl: string | null = null;
@@ -107,7 +107,7 @@ export async function registrarVenta(
     // Conversión de tipos
     const eventoIdNum = Number(eventoId);
     const cantidadNum = Number(cantidad);
-    const socioIdNum = socioId ? Number(socioId) : undefined;
+    const socioIdNum = socioIdAutenticado ?? (socioId ? Number(socioId) : undefined);
 
     // Llamada al service
     const venta = await eventoService.registrarVenta(

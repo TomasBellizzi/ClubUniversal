@@ -192,9 +192,6 @@ export async function deleteUser(id: number): Promise<void> {
         await tx.cuota.deleteMany({ where: { id: { in: cuotaIds } } });
       }
 
-      // Eliminar reservas
-      await tx.reserva.deleteMany({ where: { socioId } });
-
       // Eliminar relaciones de actividad
       await tx.actividadSocio.deleteMany({ where: { socioId } });
 
