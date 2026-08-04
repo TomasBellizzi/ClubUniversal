@@ -299,6 +299,33 @@ PR template esperado:
 - Documentos Relacionados.
 - Checklist de Estandares.
 
+## Registro de Cambios para Agentes
+
+Cuando se haga un cambio en el repositorio, ya sea agregar, modificar o quitar archivos, se debe crear un archivo de contexto dentro de `.codex/`.
+
+El archivo debe nombrarse con el titulo o nombre del PR asociado al cambio, usando un nombre claro y compatible con filesystem, por ejemplo:
+
+- `.codex/feature-estrategia-testing.md`
+- `.codex/fix-validacion-cuotas.md`
+
+Cada archivo debe seguir este formato:
+
+```markdown
+# Titulo del PR
+
+- Fecha:
+- Titulo del PR:
+- Descripcion de los cambios:
+- Documentos relacionados:
+- Autor:
+
+## Explicacion profunda de los cambios
+
+...
+```
+
+Objetivo: dejar contexto breve pero util para que otros agentes entiendan que se cambio, por que se cambio y que documentos o TDDs se relacionan con el trabajo.
+
 ## Proximos Pasos Recomendados
 
 1. Leer archivos de teoria y ejemplos de tests que aporte el usuario.
