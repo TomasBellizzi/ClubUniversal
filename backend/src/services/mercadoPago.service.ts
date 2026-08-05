@@ -24,9 +24,9 @@ function isLocalUrl(url: string) {
   return /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?/i.test(url);
 }
 
-async function mercadoPagoFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function mercadoPagoFetch<T>(url: URL, options: RequestInit = {}): Promise<T> {
   const accessToken = getRequiredEnv("MERCADOPAGO_ACCESS_TOKEN");
-  const response = await fetch(`${MERCADO_PAGO_API}${path}`, {
+  const response = await fetch(url.toString(), {
     ...options,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -46,6 +46,31 @@ async function mercadoPagoFetch<T>(path: string, options: RequestInit = {}): Pro
   }
 
   return body as T;
+}
+
+function buildPreferenceUrl() {
+  return new URL("/checkout/preferences", MERCADO_PAGO_API);
+}
+
+function buildPaymentSearchUrl(searchParams: URLSearchParams) {
+  const url = new URL("/v1/payments/search", MERCADO_PAGO_API);
+  searchParams.forEach((value, key) => {
+    url.searchParams.set(key, value);
+  });
+  return url;
+}
+
+function buildPaymentDetailUrl(paymentId: string) {
+  if (!/^\d+$/.test(paymentId)) {
+    throw Object.assign(new Error("ID de pago invalido"), { statusCode: 400 });
+  }
+
+  const safePaymentId = Number(paymentId);
+  if (!Number.isSafeInteger(safePaymentId) || safePaymentId <= 0) {
+    throw Object.assign(new Error("ID de pago invalido"), { statusCode: 400 });
+  }
+
+  return new URL(`/v1/payments/${safePaymentId}`, MERCADO_PAGO_API);
 }
 
 type PreferenceResponse = {
@@ -143,7 +168,7 @@ export async function crearPreferenciaEntrada(eventoId: number, cantidad: number
       }
     : undefined;
 
-  const preference = await mercadoPagoFetch<PreferenceResponse>("/checkout/preferences", {
+  const preference = await mercadoPagoFetch<PreferenceResponse>(buildPreferenceUrl(), {
     method: "POST",
     body: JSON.stringify({
       items: [
@@ -194,7 +219,9 @@ export async function crearPreferenciaEntrada(eventoId: number, cantidad: number
 }
 
 export async function confirmarPagoPorPaymentId(paymentId: string) {
-  const payment = await mercadoPagoFetch<PaymentResponse>(`/v1/payments/${paymentId}`);
+  const payment = await mercadoPagoFetch<PaymentResponse>(
+    buildPaymentDetailUrl(paymentId)
+  );
 
   if (!payment.external_reference) {
     return null;
@@ -247,7 +274,9 @@ export async function conciliarEntradaMercadoPago(entradaId: number, socioId: nu
     limit: "1",
   });
 
-  const search = await mercadoPagoFetch<PaymentSearchResponse>(`/v1/payments/search?${searchParams.toString()}`);
+  const search = await mercadoPagoFetch<PaymentSearchResponse>(
+    buildPaymentSearchUrl(searchParams)
+  );
   const payment = search.results?.[0];
 
   if (!payment) return entrada;

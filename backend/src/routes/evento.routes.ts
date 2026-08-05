@@ -4,15 +4,19 @@ import { upload } from '../middlewares/comprobantes.middleware';
 import { createEventoSchema, updateEventoSchema } from '../validations/evento.validation';
 import { validate } from '../middlewares/validation.middleware';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
+import { mercadoPagoLimiter } from '../middlewares/rateLimit.middleware';
 const router = Router();
 
 router.get('/mercadopago/retorno',
+    mercadoPagoLimiter,
     eventoController.retornoMercadoPago);
 
 router.post('/mercadopago/webhook',
+    mercadoPagoLimiter,
     eventoController.webhookMercadoPago);
 
 router.post('/mercadopago/entradas/:entradaId/conciliar',
+    mercadoPagoLimiter,
     authenticate,
     authorize('SOCIO'),
     eventoController.conciliarMercadoPago);
@@ -36,6 +40,7 @@ router.put('/:id',
     validate(updateEventoSchema), eventoController.updateEvento);
 
 router.post('/:id/mercadopago/preferencia',
+    mercadoPagoLimiter,
     authenticate,
     authorize('SOCIO'),
     eventoController.crearPreferenciaMercadoPago);
