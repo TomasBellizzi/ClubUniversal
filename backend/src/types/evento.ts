@@ -15,6 +15,8 @@ export interface Evento {
   createdAt?: Date;
   actividad?: Actividad;   
   entradas?: Entrada[];
+  entradasVendidas?: number;
+  montoTotal?: number;
 }
 
 export interface CreateEventoRequest {

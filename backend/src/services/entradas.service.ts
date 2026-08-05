@@ -48,7 +48,10 @@ export async function createEntrada(entradaData: CreateEntradaRequest): Promise<
     throw new Error("Error al obtener las entradas del evento");
   }
 
-  const entradasVendidas = evento.entradas.reduce((sum, e) => sum + e.cantidad, 0);
+  const entradasVendidas = evento.entradas.reduce(
+    (sum, e) => e.estado === "PAGADA" ? sum + e.cantidad : sum,
+    0
+  );
 
   if (entradasVendidas + entradaData.cantidad > evento.capacidad) {
     throw new Error("No hay suficientes entradas disponibles");
@@ -66,6 +69,7 @@ export async function createEntrada(entradaData: CreateEntradaRequest): Promise<
       socioId: entradaData.socioId,
       formaDePago: entradaData.formaDePago,
       comprobanteUrl: entradaData.comprobanteUrl,
+      estado: "PAGADA",
       createdAt: new Date(),
     },
     include: {
@@ -116,7 +120,10 @@ export async function deleteEntrada(id: number): Promise<void> {
 // Obtener entradas por ID de socio
 export async function getEntradasBySocioId(socioId: number): Promise<Entrada[]> {
   const entradas = await prisma.entrada.findMany({
-    where: { socioId },
+    where: {
+      socioId,
+      estado: "PAGADA",
+    },
     orderBy: { id: "asc" },
     include: {
       socio: true,

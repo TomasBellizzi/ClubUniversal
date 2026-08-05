@@ -1,4 +1,4 @@
-import { Evento, FormaDePago } from "@prisma/client";
+import { Evento, FormaDePago, estado_entrada } from "@prisma/client";
 import { Socio } from "./Socio";
 
 export interface Entrada {
@@ -13,6 +13,11 @@ export interface Entrada {
     createdAt?: Date;
     formaDePago: FormaDePago;
     comprobanteUrl?: string | null
+    estado?: estado_entrada;
+    mercadoPagoPreferenceId?: string | null;
+    mercadoPagoPaymentId?: string | null;
+    mercadoPagoStatus?: string | null;
+    mercadoPagoExternalReference?: string | null;
     evento: Evento
 }
 

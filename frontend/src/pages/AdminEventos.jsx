@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Form, Badge, Row, Col, Card, ProgressBar } from 'react-bootstrap';
+import { Button, Modal, Form, Badge, Row, Col, Card, ProgressBar, Collapse, Table } from 'react-bootstrap';
 import '../styles/SocioEntradas.css';
 import '../styles/HomePage.css';
 import Header from '../components/Header';
@@ -17,9 +17,10 @@ export default function AdminEventos() {
   const [cantidad, setCantidad] = useState(1);
   const [modoAgregar, setModoAgregar] = useState(false);
   const [modoEditar, setModoEditar] = useState(false);
-  const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [mostrarVenta, setMostrarVenta] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [eventoExpandidoId, setEventoExpandidoId] = useState(null);
+  const [busquedaCompradores, setBusquedaCompradores] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [dniSocio, setDniSocio] = useState('');
   const [formaPago, setFormaPago] = useState('EFECTIVO');
@@ -289,12 +290,6 @@ export default function AdminEventos() {
     setShowModal(true);
   };
 
-  const handleMostrarDetalle = (evento) => {
-    setEventoSeleccionado(evento);
-    setMostrarDetalle(true);
-    setMostrarVenta(false);
-  };
-
   const handleMostrarVenta = (evento) => {
     setEventoSeleccionado(evento);
     setCantidad(1);
@@ -302,7 +297,28 @@ export default function AdminEventos() {
     setComprobanteFile(null);
     setFormaPago("EFECTIVO");
     setMostrarVenta(true);
-    setMostrarDetalle(false);
+  };
+
+  const toggleDetalleEvento = (eventoId) => {
+    setEventoExpandidoId((actual) => (actual === eventoId ? null : eventoId));
+    setBusquedaCompradores('');
+  };
+
+  const getEntradasPagadas = (evento) => {
+    return (evento.entradas || []).filter((entrada) => entrada.estado === "PAGADA");
+  };
+
+  const getCompradoresFiltrados = (evento) => {
+    const texto = busquedaCompradores.trim().toLowerCase();
+    const entradasPagadas = getEntradasPagadas(evento);
+
+    if (!texto) return entradasPagadas;
+
+    return entradasPagadas.filter((entrada) => {
+      const dni = entrada.socio?.dni?.toString().toLowerCase() || "";
+      const email = entrada.socio?.email?.toLowerCase() || "";
+      return dni.includes(texto) || email.includes(texto);
+    });
   };
 
   const getEstadoBadge = (evento) => {
@@ -435,8 +451,17 @@ export default function AdminEventos() {
           {/* Listado de eventos */}
           <Row className="g-3">
             {eventosFiltrados.map((evento) => (
-              <Col key={evento.id} xs={12} md={6} lg={4}>
-                <Card className="h-100 evento-admin-card shadow-sm">
+              <Col
+                key={evento.id}
+                xs={12}
+                md={eventoExpandidoId === evento.id ? 12 : 6}
+                lg={eventoExpandidoId === evento.id ? 12 : 4}
+              >
+                <Card
+                  className="h-100 evento-admin-card shadow-sm"
+                  onClick={() => toggleDetalleEvento(evento.id)}
+                  style={{ cursor: "pointer" }}
+                >
                   <Card.Body className="d-flex flex-column">
                     <div className="d-flex justify-content-between align-items-start mb-3">
                       <div>
@@ -497,17 +522,12 @@ export default function AdminEventos() {
                     <div className="mt-auto">
                       <div className="d-flex gap-2">
                         <Button
-                          variant="outline-info"
-                          size="sm"
-                          onClick={() => handleMostrarDetalle(evento)}
-                          title="Ver detalles"
-                        >
-                          <i className="bi bi-info-circle"></i>
-                        </Button>
-                        <Button
                           variant="outline-warning"
                           size="sm"
-                          onClick={() => handleEditarEvento(evento)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditarEvento(evento);
+                          }}
                           title="Editar evento"
                         >
                           <i className="bi bi-pencil"></i>
@@ -515,7 +535,10 @@ export default function AdminEventos() {
                         <Button
                           variant="outline-success"
                           size="sm"
-                          onClick={() => handleMostrarVenta(evento)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMostrarVenta(evento);
+                          }}
                           disabled={(evento.entradasVendidas || 0) >= evento.capacidad}
                           title="Registrar venta"
                         >
@@ -525,7 +548,10 @@ export default function AdminEventos() {
                           <Button
                             variant="outline-danger"
                             size="sm"
-                            onClick={() => handleEliminarEvento(evento.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEliminarEvento(evento.id);
+                            }}
                             title="Eliminar evento"
                           >
                             <i className="bi bi-trash"></i>
@@ -533,6 +559,96 @@ export default function AdminEventos() {
                         )}
                       </div>
                     </div>
+                    <Collapse in={eventoExpandidoId === evento.id}>
+                      <div
+                        className="border-top mt-3 pt-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <h6 className="text-success mb-3">
+                          <i className="bi bi-info-circle me-2"></i>
+                          Detalle del evento
+                        </h6>
+                        <Row className="g-2 small mb-3">
+                          <Col xs={12}>
+                            <strong>Fecha:</strong> {formatearFecha(evento.fecha)}
+                          </Col>
+                          <Col xs={12}>
+                            <strong>Horario:</strong> {evento.horaInicio} - {evento.horaFin}
+                          </Col>
+                          <Col xs={12}>
+                            <strong>Actividad:</strong> {evento.actividad?.nombre || "-"}
+                          </Col>
+                          <Col xs={12}>
+                            <strong>Ubicacion:</strong> {evento.ubicacion || "-"}
+                          </Col>
+                          <Col xs={6}>
+                            <strong>Capacidad:</strong> {evento.capacidad}
+                          </Col>
+                          <Col xs={6}>
+                            <strong>Vendidas:</strong> {evento.entradasVendidas || 0}
+                          </Col>
+                          <Col xs={6}>
+                            <strong>Precio:</strong> ${evento.precioEntrada}
+                          </Col>
+                          <Col xs={6}>
+                            <strong>Total:</strong> ${(evento.montoTotal ?? 0).toLocaleString()}
+                          </Col>
+                          <Col xs={12}>
+                            <strong>Descripcion:</strong> {evento.descripcion || "-"}
+                          </Col>
+                        </Row>
+
+                        <div className="d-flex justify-content-between align-items-center mb-2">
+                          <h6 className="text-success mb-0">
+                            <i className="bi bi-people me-2"></i>
+                            Compradores
+                          </h6>
+                          <Badge bg="success">{getEntradasPagadas(evento).length}</Badge>
+                        </div>
+                        <Form.Control
+                          type="text"
+                          size="sm"
+                          className="mb-2"
+                          placeholder="Buscar por DNI o email..."
+                          value={eventoExpandidoId === evento.id ? busquedaCompradores : ""}
+                          onChange={(e) => setBusquedaCompradores(e.target.value)}
+                        />
+                        {getCompradoresFiltrados(evento).length === 0 ? (
+                          <div className="alert alert-info py-2 mb-0">
+                            No hay compradores que coincidan con la busqueda.
+                          </div>
+                        ) : (
+                          <div className="table-responsive">
+                            <Table size="sm" hover className="align-middle mb-0">
+                              <thead>
+                                <tr>
+                                  <th>Socio</th>
+                                  <th>DNI</th>
+                                  <th>Email</th>
+                                  <th>Cant.</th>
+                                  <th>Pago</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {getCompradoresFiltrados(evento).map((entrada) => (
+                                  <tr key={entrada.id}>
+                                    <td>
+                                      {entrada.socio
+                                        ? `${entrada.socio.nombre || ""} ${entrada.socio.apellido || ""}`.trim()
+                                        : "Venta presencial"}
+                                    </td>
+                                    <td>{entrada.socio?.dni || "-"}</td>
+                                    <td>{entrada.socio?.email || "-"}</td>
+                                    <td>{entrada.cantidad}</td>
+                                    <td>{entrada.formaDePago}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </Table>
+                          </div>
+                        )}
+                      </div>
+                    </Collapse>
                   </Card.Body>
                 </Card>
               </Col>
@@ -723,8 +839,8 @@ export default function AdminEventos() {
 
           {/* Modal Detalle */}
           <Modal
-            show={mostrarDetalle}
-            onHide={() => setMostrarDetalle(false)}
+            show={false}
+            onHide={() => {}}
             size="lg"
           >
             <Modal.Header closeButton className="bg-success text-white">
