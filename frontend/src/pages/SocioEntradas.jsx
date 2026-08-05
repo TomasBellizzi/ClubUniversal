@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from "react";
-import { Button, Card, Modal, Form, Badge, Row, Col, Alert } from "react-bootstrap";
+import React, { useCallback, useEffect, useState } from "react";
+import { Alert, Badge, Button, Card, Col, Form, Modal, Row } from "react-bootstrap";
+import { useLocation } from "react-router-dom";
+import axios from "axios";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 import Header from "../components/Header";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "../styles/SocioEntradas.css";
 import fondo from "../assets/fondo.jpg";
 import { emailService } from "../service/emailService";
-import axios from "axios";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
 import { entradaSchema } from "../validations/entradasSchema";
+
+const MP_PENDING_KEY = "mercadoPagoEntradaPendiente";
 
 export default function SocioEntradas() {
   const [eventos, setEventos] = useState([]);
@@ -18,6 +21,7 @@ export default function SocioEntradas() {
   const [loading, setLoading] = useState(false);
   const [filtroEntradas, setFiltroEntradas] = useState("todas");
   const [usuario, setUsuario] = useState(null);
+  const location = useLocation();
 
   const API_BASE = `${import.meta.env.VITE_API_URL}/api`;
   const token = localStorage.getItem("token");
@@ -30,19 +34,10 @@ export default function SocioEntradas() {
     watch,
   } = useForm({
     resolver: yupResolver(entradaSchema),
-    defaultValues: { cantidad: 1, comprobante: null },
+    defaultValues: { cantidad: 1 },
   });
 
-  useEffect(() => {
-    const usuarioData = JSON.parse(localStorage.getItem("usuario"));
-    if (usuarioData && usuarioData.socio) {
-      setUsuario(usuarioData);
-      fetchMisEntradas(usuarioData.socio.id);
-    }
-    fetchEventos();
-  }, []);
-
-  async function fetchEventos() {
+  const fetchEventos = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE}/eventos`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -54,9 +49,9 @@ export default function SocioEntradas() {
       console.error(error);
       alert(error.message);
     }
-  }
+  }, [API_BASE, token]);
 
-  async function fetchMisEntradas(socioId) {
+  const fetchMisEntradas = useCallback(async (socioId) => {
     try {
       const res = await fetch(`${API_BASE}/entradas?socioId=${socioId}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -68,11 +63,103 @@ export default function SocioEntradas() {
       console.error(err);
       alert(err.message);
     }
-  }
+  }, [API_BASE, token]);
+
+  const handlePagoAprobado = useCallback(async (entradaId) => {
+    try {
+      const usuarioData = JSON.parse(localStorage.getItem("usuario"));
+      if (!usuarioData?.socio) return;
+
+      await fetchMisEntradas(usuarioData.socio.id);
+
+      const res = await fetch(`${API_BASE}/entradas/${entradaId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("No se pudo recuperar la entrada pagada");
+
+      const data = await res.json();
+      const entrada = data.entrada;
+      const emailKey = `emailEntradaMercadoPago:${entradaId}`;
+
+      if (!localStorage.getItem(emailKey)) {
+        const emailResult = await emailService.enviarEmailCompra(
+          entrada,
+          usuarioData,
+          entrada.evento
+        );
+
+        if (emailResult.success) {
+          localStorage.setItem(emailKey, "sent");
+        } else {
+          console.warn("Error email:", emailResult.message);
+        }
+      }
+
+      alert(`Pago aprobado. Entrada #${entrada.id} registrada correctamente.`);
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+    }
+  }, [API_BASE, fetchMisEntradas, token]);
+
+  const conciliarPagoPendiente = useCallback(async () => {
+    const pendingRaw = localStorage.getItem(MP_PENDING_KEY);
+    if (!pendingRaw) return;
+
+    try {
+      const pending = JSON.parse(pendingRaw);
+      if (!pending?.entradaId) return;
+
+      const res = await axios.post(
+        `${API_BASE}/eventos/mercadopago/entradas/${pending.entradaId}/conciliar`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const entrada = res.data?.entrada;
+      if (entrada?.estado === "PAGADA") {
+        localStorage.removeItem(MP_PENDING_KEY);
+        await handlePagoAprobado(entrada.id);
+      } else if (entrada?.estado === "CANCELADA") {
+        localStorage.removeItem(MP_PENDING_KEY);
+        alert("El pago fue rechazado por Mercado Pago.");
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, [API_BASE, handlePagoAprobado, token]);
+
+  useEffect(() => {
+    const usuarioData = JSON.parse(localStorage.getItem("usuario"));
+    if (usuarioData?.socio) {
+      setUsuario(usuarioData);
+      fetchMisEntradas(usuarioData.socio.id);
+    }
+    fetchEventos();
+    conciliarPagoPendiente();
+  }, [conciliarPagoPendiente, fetchEventos, fetchMisEntradas]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const mpStatus = params.get("mpStatus");
+    const entradaId = params.get("entradaId");
+
+    if (!mpStatus) return;
+
+    if (mpStatus === "success" && entradaId) {
+      handlePagoAprobado(Number(entradaId));
+    } else if (mpStatus === "pending") {
+      alert("El pago quedo pendiente de confirmacion en Mercado Pago.");
+    } else if (mpStatus === "failure" || mpStatus === "error") {
+      alert("No se pudo completar el pago con Mercado Pago.");
+    }
+
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [handlePagoAprobado, location.search]);
 
   const handleAbrirCompra = (evento) => {
     setEventoSeleccionado(evento);
-    reset({ cantidad: 1, comprobante: null });
+    reset({ cantidad: 1 });
     setShowModal(true);
   };
 
@@ -81,41 +168,29 @@ export default function SocioEntradas() {
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append("eventoId", eventoSeleccionado.id);
-      formData.append("cantidad", data.cantidad);
-      formData.append("socioId", usuario.socio.id);
-      formData.append("formaDePago", "CBU");
-      formData.append("comprobante", data.comprobante[0]);
-
       const res = await axios.post(
-        `${API_BASE}/eventos/${eventoSeleccionado.id}/venta`,
-        formData,
+        `${API_BASE}/eventos/${eventoSeleccionado.id}/mercadopago/preferencia`,
+        { cantidad: Number(data.cantidad) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const entrada = res.data;
-      setMisEntradas((prev) => [...prev, entrada]);
+      const redirectUrl = res.data?.redirectUrl;
+      if (!redirectUrl) throw new Error("Mercado Pago no devolvio una URL de pago");
 
-      try {
-        const emailResult = await emailService.enviarEmailCompra(
-          entrada,
-          usuario,
-          eventoSeleccionado
-        );
-        if (!emailResult.success) console.warn("Error email:", emailResult.message);
-      } catch (error) {
-        console.error("Error en email:", error);
-      }
+      localStorage.setItem(
+        MP_PENDING_KEY,
+        JSON.stringify({
+          entradaId: res.data?.entrada?.id,
+          preferenceId: res.data?.preferenceId,
+          createdAt: Date.now(),
+        })
+      );
 
-      alert(`Compra exitosa! Código: ${entrada.codigoEntrada || entrada.id}`);
+      window.location.href = redirectUrl;
     } catch (error) {
       console.error(error);
       alert(error.response?.data?.message || error.message);
-    } finally {
       setLoading(false);
-      setShowModal(false);
-      reset();
     }
   };
 
@@ -159,11 +234,10 @@ export default function SocioEntradas() {
   });
 
   const getEstadoBadge = (entrada) => {
-    return esFuturo(entrada.evento?.fecha || entrada.fecha) ? (
-      <Badge bg="success">Activa</Badge>
-    ) : (
-      <Badge bg="secondary">Pasada</Badge>
-    );
+    if (entrada.estado === "CANCELADA") return <Badge bg="danger">Cancelada</Badge>;
+    return esFuturo(entrada.evento?.fecha || entrada.fecha)
+      ? <Badge bg="success">Activa</Badge>
+      : <Badge bg="secondary">Pasada</Badge>;
   };
 
   return (
@@ -186,11 +260,10 @@ export default function SocioEntradas() {
         <div className="contenido-cuadro container">
           {!usuario ? (
             <Alert variant="warning">
-              Debés iniciar sesión para ver tus entradas.
+              Debes iniciar sesion para ver tus entradas.
             </Alert>
           ) : (
             <>
-              {/* Mis Entradas */}
               <section className="mb-5">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                   <h4 className="mb-0">
@@ -199,33 +272,21 @@ export default function SocioEntradas() {
                   </h4>
                   <div className="btn-group" role="group">
                     <Button
-                      variant={
-                        filtroEntradas === "todas"
-                          ? "success"
-                          : "outline-success"
-                      }
+                      variant={filtroEntradas === "todas" ? "success" : "outline-success"}
                       size="sm"
                       onClick={() => setFiltroEntradas("todas")}
                     >
                       Todas
                     </Button>
                     <Button
-                      variant={
-                        filtroEntradas === "activas"
-                          ? "success"
-                          : "outline-success"
-                      }
+                      variant={filtroEntradas === "activas" ? "success" : "outline-success"}
                       size="sm"
                       onClick={() => setFiltroEntradas("activas")}
                     >
                       Activas
                     </Button>
                     <Button
-                      variant={
-                        filtroEntradas === "pasadas"
-                          ? "success"
-                          : "outline-success"
-                      }
+                      variant={filtroEntradas === "pasadas" ? "success" : "outline-success"}
                       size="sm"
                       onClick={() => setFiltroEntradas("pasadas")}
                     >
@@ -237,7 +298,7 @@ export default function SocioEntradas() {
                 {entradasFiltradas.length === 0 ? (
                   <Alert variant="info" className="text-center">
                     <i className="bi bi-info-circle me-2"></i>
-                    No tenés entradas.
+                    No tenes entradas.
                   </Alert>
                 ) : (
                   <Row className="g-3">
@@ -256,14 +317,12 @@ export default function SocioEntradas() {
                                 <i className="bi bi-calendar3 me-1"></i>
                                 {formatearFecha(entrada.evento.fecha)}
                               </small>
-                              {entrada.evento?.horaInicio &&
-                                entrada.evento?.horaFin && (
-                                  <small className="text-muted d-block">
-                                    <i className="bi bi-clock me-1"></i>
-                                    {entrada.evento.horaInicio}hs a{" "}
-                                    {entrada.evento.horaFin}hs
-                                  </small>
-                                )}
+                              {entrada.evento?.horaInicio && entrada.evento?.horaFin && (
+                                <small className="text-muted d-block">
+                                  <i className="bi bi-clock me-1"></i>
+                                  {entrada.evento.horaInicio}hs a {entrada.evento.horaFin}hs
+                                </small>
+                              )}
                               <small className="text-muted d-block">
                                 <i className="bi bi-geo-alt me-1"></i>
                                 {entrada.evento?.actividad
@@ -273,11 +332,9 @@ export default function SocioEntradas() {
                             </div>
                             <div className="mt-auto">
                               <div className="d-flex justify-content-between align-items-center mb-2">
-                                <span className="fw-bold">
-                                  ${entrada.total}
-                                </span>
+                                <span className="fw-bold">${entrada.total}</span>
                                 <small className="text-muted">
-                                  x{entrada.cantidad}
+                                  x{entrada.cantidad} - {entrada.formaDePago}
                                 </small>
                               </div>
                             </div>
@@ -289,11 +346,10 @@ export default function SocioEntradas() {
                 )}
               </section>
 
-              {/* Próximos eventos */}
               <section>
                 <h4 className="mb-4">
                   <i className="bi bi-calendar-event me-2 text-success"></i>
-                  Próximos Eventos
+                  Proximos Eventos
                 </h4>
                 <Row className="g-3">
                   {eventosDisponibles.map((evento) => (
@@ -322,8 +378,7 @@ export default function SocioEntradas() {
                           </small>
                           {evento.descripcion && (
                             <small className="text-muted d-block mt-2">
-                              <strong>Descripción:</strong>{" "}
-                              {evento.descripcion}
+                              <strong>Descripcion:</strong> {evento.descripcion}
                             </small>
                           )}
                           <Button
@@ -343,7 +398,6 @@ export default function SocioEntradas() {
           )}
         </div>
 
-        {/* Modal de Compra */}
         <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
           <Modal.Header closeButton className="bg-success text-white">
             <Modal.Title>Comprar Entrada</Modal.Title>
@@ -354,46 +408,23 @@ export default function SocioEntradas() {
                 <>
                   <Form.Group className="mb-3">
                     <Form.Label>Cantidad</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min={1}
-                      {...register("cantidad")}
-                    />
+                    <Form.Control type="number" min={1} {...register("cantidad")} />
                     {errors.cantidad && (
-                      <small className="text-danger">
-                        {errors.cantidad.message}
-                      </small>
+                      <small className="text-danger">{errors.cantidad.message}</small>
                     )}
                   </Form.Group>
 
                   <div className="mb-3 p-2 bg-light border rounded">
                     <strong>Monto a pagar:</strong>
                     <p className="mb-0">
-                      ${eventoSeleccionado.precioEntrada} x{" "}
-                      {watch("cantidad") || 1} = $
-                      {(watch("cantidad") || 1) *
-                        eventoSeleccionado.precioEntrada}
+                      ${eventoSeleccionado.precioEntrada} x {watch("cantidad") || 1} = $
+                      {(watch("cantidad") || 1) * eventoSeleccionado.precioEntrada}
                     </p>
                   </div>
 
-                  <div className="mb-3 p-2 bg-light border rounded">
-                    <strong>CBU para transferencia:</strong>
-                    <p className="mb-0">1234567890123456789012</p>
-                  </div>
-
-                  <Form.Group>
-                    <Form.Label>Adjuntar comprobante</Form.Label>
-                    <Form.Control
-                      type="file"
-                      accept=".png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
-                      {...register("comprobante")}
-                    />
-                    {errors.comprobante && (
-                      <small className="text-danger">
-                        {errors.comprobante.message}
-                      </small>
-                    )}
-                  </Form.Group>
+                  <Alert variant="info" className="mb-0">
+                    Al confirmar, vas a ser redirigido a Mercado Pago para completar el pago con una cuenta de prueba.
+                  </Alert>
                 </>
               )}
             </Modal.Body>
@@ -410,7 +441,7 @@ export default function SocioEntradas() {
                 type="submit"
                 disabled={loading || isSubmitting}
               >
-                {loading ? "Procesando..." : "Confirmar Compra"}
+                {loading ? "Redirigiendo..." : "Pagar con Mercado Pago"}
               </Button>
             </Modal.Footer>
           </Form>

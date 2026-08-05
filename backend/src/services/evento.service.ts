@@ -3,6 +3,34 @@ import prisma from "../config/prisma";
 import { Entrada } from "../types/entradas";
 import { FormaDePago } from "@prisma/client";
 
+function mapEventoConVentas(evento: any): Evento {
+  const entradas = evento.entradas ?? [];
+
+  const entradasVendidas = entradas.reduce(
+    (sum: number, e: any) => e.estado === "PAGADA" ? sum + e.cantidad : sum,
+    0
+  );
+
+  const montoTotal = entradas.reduce(
+    (sum: number, e: any) => e.estado === "PAGADA" ? sum + e.total : sum,
+    0
+  );
+
+  const entradasConEstado = entradas.map((e: any) => ({
+    ...e,
+    socio: e.socio
+      ? { ...e.socio, estado: e.socio.estado as "ACTIVO" | "INACTIVO" }
+      : null,
+  }));
+
+  return {
+    ...evento,
+    entradas: entradasConEstado,
+    entradasVendidas,
+    montoTotal,
+  };
+}
+
 // Obtener todos los eventos
 export async function getAllEventos(): Promise<Evento[]> {
   const eventos = await prisma.evento.findMany({
@@ -18,33 +46,7 @@ export async function getAllEventos(): Promise<Evento[]> {
     orderBy: { fecha: "asc" },
   });
 
-  return eventos.map((evento) => {
-    const entradas = evento.entradas ?? [];
-
-    const entradasVendidas = entradas.reduce(
-      (sum, e) => sum + e.cantidad,
-      0
-    );
-
-    const montoTotal = entradas.reduce(
-      (sum, e) => sum + e.total,
-      0
-    );
-
-    const entradasConEstado = entradas.map((e) => ({
-      ...e,
-      socio: e.socio
-        ? { ...e.socio, estado: e.socio.estado as "ACTIVO" | "INACTIVO" }
-        : null,
-    }));
-
-    return {
-      ...evento,
-      entradas: entradasConEstado,
-      entradasVendidas,
-      montoTotal,
-    };
-  });
+  return eventos.map(mapEventoConVentas);
 }
 
 // Obtener evento por ID
@@ -59,15 +61,7 @@ export async function getEventoById(id: number): Promise<EventoResponse> {
 
   if (!eventoRaw) throw new Error("Evento no encontrado");
 
-  const evento = {
-    ...eventoRaw,
-    entradas: eventoRaw.entradas.map((e) => ({
-      ...e,
-      socio: e.socio
-        ? { ...e.socio, estado: e.socio.estado as "ACTIVO" | "INACTIVO" }
-        : null,
-    })),
-  };
+  const evento = mapEventoConVentas(eventoRaw);
 
   return {
     evento,
@@ -95,15 +89,7 @@ export async function createEvento(eventoData: CreateEventoRequest): Promise<Eve
     },
   });
 
-  const evento = {
-    ...created,
-    entradas: created.entradas.map((e) => ({
-      ...e,
-      socio: e.socio
-        ? { ...e.socio, estado: e.socio.estado as "ACTIVO" | "INACTIVO" }
-        : null,
-    })),
-  };
+  const evento = mapEventoConVentas(created);
 
   return {
     evento,
@@ -136,15 +122,7 @@ export async function updateEvento(
       },
     });
 
-    const evento = {
-      ...updated,
-      entradas: updated.entradas.map((e) => ({
-        ...e,
-        socio: e.socio
-          ? { ...e.socio, estado: e.socio.estado as "ACTIVO" | "INACTIVO" }
-          : null,
-      })),
-    };
+    const evento = mapEventoConVentas(updated);
 
     return {
       evento,
@@ -178,7 +156,10 @@ export async function registrarVenta(
 
   const totalVendidas = await prisma.entrada.aggregate({
     _sum: { cantidad: true },
-    where: { eventoId },
+    where: {
+      eventoId,
+      estado: "PAGADA",
+    },
   });
   const entradasVendidas = totalVendidas._sum.cantidad || 0;
 

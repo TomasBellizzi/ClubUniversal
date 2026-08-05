@@ -6,6 +6,17 @@ import { validate } from '../middlewares/validation.middleware';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
 const router = Router();
 
+router.get('/mercadopago/retorno',
+    eventoController.retornoMercadoPago);
+
+router.post('/mercadopago/webhook',
+    eventoController.webhookMercadoPago);
+
+router.post('/mercadopago/entradas/:entradaId/conciliar',
+    authenticate,
+    authorize('SOCIO'),
+    eventoController.conciliarMercadoPago);
+
 router.get('/', 
     authenticate,
     eventoController.getAllEvento);
@@ -23,6 +34,11 @@ router.put('/:id',
     authenticate,
     authorize('ADMIN', 'ADMINISTRATIVO'),
     validate(updateEventoSchema), eventoController.updateEvento);
+
+router.post('/:id/mercadopago/preferencia',
+    authenticate,
+    authorize('SOCIO'),
+    eventoController.crearPreferenciaMercadoPago);
 
 router.post('/:id/venta', 
     authenticate, 

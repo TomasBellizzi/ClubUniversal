@@ -210,6 +210,26 @@ El usuario menciono que tiene archivos de teoria y ejemplos de tests. Antes de i
 - Algunas respuestas HTTP y errores pueden no estar totalmente normalizados.
 - Revisar ownership: un socio no debe acceder a cuotas, comprobantes o entradas ajenas.
 
+## Deploy y Entornos
+
+El sistema esta desplegado de forma continua:
+
+- Frontend: Vercel.
+- Backend: Render.
+- Backend productivo: Docker, usando `backend/Dockerfile` / `backend/Dockerfile.prod`.
+
+Notas:
+
+- `docker-compose.backend.yml` permite probar localmente la imagen productiva del backend.
+- Render usa health checks contra endpoints publicos `/` y `/health`.
+- Las migraciones Prisma no deben ejecutarse automaticamente en el `CMD` del contenedor. Cuando cambia el schema, correr `prisma migrate deploy` como paso separado con una connection string apta para migraciones.
+- Para Mercado Pago en deploy, configurar variables en Render:
+  - `MERCADOPAGO_ACCESS_TOKEN`
+  - `BACKEND_PUBLIC_URL`
+  - `FRONTEND_URL`
+- Para frontend en Vercel, configurar:
+  - `VITE_API_URL`
+
 ## Comandos Utiles
 
 Desde la raiz del repo:
