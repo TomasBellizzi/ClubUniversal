@@ -1,11 +1,15 @@
 node_modules
+dist
 npm-debug.log
 .env
+.env.*
+uploads
+coverage
+*.log
 .git
 .gitignore
 README.md
 .vscode
 .idea
-dist
 build
 .DS_Store
