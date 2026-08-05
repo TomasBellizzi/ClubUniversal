@@ -12,4 +12,6 @@ La pantalla publica de login tenia overflow horizontal en mobile por el header i
 
 El backend ahora responde en `/` con informacion basica del servicio y en `/health` con estado, uptime y timestamp. Esto permite configurar health checks en Render y evita que la raiz del backend muestre `Cannot GET /`.
 
-Tambien se actualizo `backend/Dockerfile` para que el deploy que apunta a `Dockerfile` ejecute una imagen productiva: instala dependencias con `npm ci`, genera Prisma Client, compila TypeScript y arranca con `npm start` despues de `prisma migrate deploy`.
+Tambien se actualizo `backend/Dockerfile` para que el deploy que apunta a `Dockerfile` ejecute una imagen productiva: instala dependencias con `npm ci`, genera Prisma Client, compila TypeScript y arranca con `npm start`.
+
+Las migraciones Prisma quedan fuera del arranque automatico del contenedor. Si cambia el schema, se deben ejecutar como paso separado con una connection string directa compatible con Prisma Migrate.
