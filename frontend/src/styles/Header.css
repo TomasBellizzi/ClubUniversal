@@ -22,3 +22,50 @@
 .navbar-custom .navbar-nav {
   gap: 0.5rem;
 }
+
+.navbar-custom .container {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.initial-navbar-brand {
+  max-width: 100%;
+  min-width: 0;
+  white-space: normal;
+}
+
+.initial-navbar-logo {
+  flex: 0 0 auto;
+}
+
+.initial-navbar-brand span {
+  flex: 1 1 auto;
+  line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.login-page {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+@media (max-width: 480px) {
+  .navbar-custom {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .initial-navbar-brand {
+    gap: 0.45rem !important;
+    margin-right: 0;
+  }
+
+  .initial-navbar-logo {
+    height: 56px;
+  }
+
+  .initial-navbar-brand span {
+    font-size: 1rem;
+  }
+}

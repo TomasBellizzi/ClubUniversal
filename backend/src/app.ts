@@ -51,6 +51,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(logRequest);
 app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'Club Universal API',
+    health: '/health',
+  });
+});
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
 app.use('/api/socios', socioRoutes);
 app.use('/api/cuotas', cuotaRoutes);
 app.use('/api/cuotas', comprobanteRoutes);

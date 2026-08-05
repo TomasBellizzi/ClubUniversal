@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Button, Form, Col, Row, Card, InputGroup } from 'react-bootstrap';
+import { Button, Form, Col, Row, Card, InputGroup, Container } from 'react-bootstrap';
 import Header from '../components/HeaderIni';
 import { setAuth } from '../helpers/auth';
 import { useNavigate } from "react-router-dom";
@@ -70,9 +70,10 @@ function Login() {
   return (
     <>
       <Header />
-      <Row className="justify-content-center mt-5">
-        <Col xs={12} sm={10} md={8} lg={6}>
-          <Card className="p-4 shadow" style={{ borderRadius: '15px', borderColor: '#198754' }}>
+      <Container fluid className="login-page px-3">
+        <Row className="justify-content-center mt-5 mx-0">
+          <Col xs={12} sm={10} md={8} lg={6} className="px-0 px-sm-2">
+            <Card className="p-4 shadow" style={{ borderRadius: '15px', borderColor: '#198754' }}>
             <h3 className="text-center mb-4 text-success">Iniciar Sesión</h3>
             {errors.root?.message && (
               <div className="alert alert-danger" role="alert">
@@ -126,9 +127,10 @@ function Login() {
                 {isSubmitting ? 'Ingresando...' : 'Iniciar Sesión'}
               </Button>
             </Form>
-          </Card>
-        </Col>
-      </Row>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
     </>
   );
 }

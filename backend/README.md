@@ -1,4 +1,4 @@
-CUENTA DE ADMINISTRADOR----> mail: admin123@gmail.com  contraseña: admin123
+CUENTA DE ADMINISTRADOR----> mail: administrador1@admin.com contraseña: administrador123
 
 Cosas a completar para la proxima entrega:
 
