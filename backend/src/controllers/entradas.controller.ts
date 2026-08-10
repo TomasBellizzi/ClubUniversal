@@ -2,7 +2,7 @@ import { CreateEntradaRequest, UpdateEntradaRequest, EntradaResponse } from "../
 import { Request, Response, NextFunction} from 'express';
 import * as entradaService from '../services/entradas.service';
 
-export async function getAllEntradas(req: Request, res: Response) {
+export async function getAllEntradas(req: Request, res: Response, next: NextFunction) {
   try {
     const { socioId } = req.query;
     const requester = req.user;
@@ -20,8 +20,8 @@ export async function getAllEntradas(req: Request, res: Response) {
 
     const entradas = await entradaService.getAllEntradas();
     res.json({ entradas });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
+  } catch (err) {
+    next(err);
   }
 }
 
