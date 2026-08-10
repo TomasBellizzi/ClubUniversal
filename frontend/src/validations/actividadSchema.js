@@ -1,5 +1,7 @@
 import * as yup from "yup";
 
+export const ACTIVIDAD_MONTO_MAXIMO = 10000;
+
 export const actividadSchema = yup.object().shape({
   nombre: yup
     .string()
@@ -11,5 +13,6 @@ export const actividadSchema = yup.object().shape({
     .number()
     .typeError("El monto debe ser un número")
     .required("El monto es obligatorio")
-    .positive("El monto debe ser mayor a 0"),
+    .positive("El monto debe ser mayor a 0")
+    .max(ACTIVIDAD_MONTO_MAXIMO, "El monto no puede superar $10.000"),
 });
