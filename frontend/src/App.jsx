@@ -9,6 +9,7 @@ import IniciarSesion from './pages/IniciarSesion';
 import Registrarse from './pages/Registrarse';
 import HomePage from './pages/HomePage';
 import Contacto from './pages/Contacto';
+import CambiarPasswordInicial from './pages/CambiarPasswordInicial';
 
 // SOCIO
 import HomePageUser from './pages/HomePageUser';
@@ -39,6 +40,17 @@ function App() {
             {/* Públicas */}
             <Route path="/" element={<IniciarSesion />} />
             <Route path="/registro" element={<Registrarse />} />
+            <Route
+              path="/cambiar-password-inicial"
+              element={
+                <PrivateRoute
+                  allowedRoles={['SOCIO', 'ADMINISTRATIVO', 'ADMIN']}
+                  allowInitialPasswordChange={true}
+                >
+                  <CambiarPasswordInicial />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/inicio"
               element={<PrivateRoute allowedRoles={['ADMINISTRATIVO', 'ADMIN']}><HomePage /></PrivateRoute>}

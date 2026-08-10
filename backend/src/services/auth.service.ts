@@ -1,7 +1,9 @@
 import prisma from '../config/prisma';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { LoginRequest } from '../types/auth';
+import { ChangeInitialPasswordRequest, LoginRequest } from '../types/auth';
+
+const SALT_ROUNDS = 10;
 
 function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
@@ -83,8 +85,45 @@ export async function login(data: LoginRequest) {
       id: resto.id,
       email: resto.email,
       role: resto.rol.toUpperCase(),
+      requiereCambioPassword: (resto as any).requiereCambioPassword,
       socio: resto.socio,
       administrativo: resto.administrativo,
     },
   };
+}
+
+export async function changeInitialPassword(
+  userId: number,
+  data: ChangeInitialPasswordRequest
+) {
+  if (data.newPassword !== data.confirmPassword) {
+    throw new Error('Las contrasenas no coinciden');
+  }
+
+  const usuario = await prisma.usuario.findUnique({
+    where: { id: userId },
+    select: { id: true, password: true, requiereCambioPassword: true } as any,
+  });
+
+  if (!usuario) throw new Error('Usuario no encontrado');
+  if (!(usuario as any).requiereCambioPassword) {
+    throw new Error('El usuario no requiere cambio de contrasena inicial');
+  }
+
+  const mismaPassword = await bcrypt.compare(data.newPassword, usuario.password);
+  if (mismaPassword) {
+    throw new Error('La nueva contrasena debe ser distinta a la actual');
+  }
+
+  const hashedPassword = await bcrypt.hash(data.newPassword, SALT_ROUNDS);
+
+  await prisma.usuario.update({
+    where: { id: userId },
+    data: {
+      password: hashedPassword,
+      requiereCambioPassword: false,
+    } as any,
+  });
+
+  return { success: true, message: 'Contrasena actualizada correctamente' };
 }

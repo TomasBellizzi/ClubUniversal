@@ -8,6 +8,7 @@ export interface UserData {
   email: string;
   role: Role;
   creadoEn: Date;
+  requiereCambioPassword?: boolean;
   socio?: Socio | null; 
   administrativo?: Administrativo| null;
 }
