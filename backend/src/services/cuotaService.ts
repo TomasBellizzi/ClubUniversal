@@ -5,6 +5,7 @@ import { supabase } from '../utils/supabaseClient';
 import {
   CuotaSocioDTO,
   CuotaAdministrativoDTO,
+  ActividadCuotasResumenDTO,
   CuotaAdminDTO,
   GetCuotasAdministrativoQuery,
   EnviarComprobanteResponse,
@@ -17,6 +18,8 @@ import {
 } from '../types/cuota';
 
 import prisma from '../config/prisma';
+
+const ACTIVIDADES_PRINCIPALES = ['Basquet', 'Voley', 'Taekwondo', 'Pelota-Paleta'];
 
 export const toDDMMYYYY = (d: Date) =>
   `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -132,6 +135,12 @@ export async function getCuotasAdministrativo(
 ): Promise<CuotaAdministrativoDTO[]> {
   const where: any = {};
   if (filtros.estado && filtros.estado !== 'Todas') where.estado = filtros.estado;
+  const actividadId = Number(filtros.actividadId || 0);
+  if (actividadId > 0) {
+    where.cuotaXactividad = {
+      some: { actividadId },
+    };
+  }
   if (filtros.nombre) {
     where.Socio = {
       OR: [
@@ -144,14 +153,24 @@ export async function getCuotasAdministrativo(
   const cuotas = await prisma.cuota.findMany({
     where,
     include: {
-      Socio: { select: { nombre: true, apellido: true, dni: true , fotoCarnet: true} },
+      Socio: { select: { id: true, nombre: true, apellido: true, dni: true , fotoCarnet: true} },
       comprobantes: { where: { activo: true }, select: { url: true, subido_en: true } },
+      cuotaXactividad: {
+        select: {
+          actividadId: true,
+          monto: true,
+          Actividad: {
+            select: { id: true, nombre: true },
+          },
+        },
+      },
     },
     orderBy: { created_at: 'desc' },
   });
 
   return cuotas.map((c) => ({
     id: c.id,
+    socioId: c.Socio.id,
     socioNombre: `${c.Socio.nombre} ${c.Socio.apellido}`,
     dni: c.Socio.dni,
     mes: c.mes!,
@@ -162,7 +181,94 @@ export async function getCuotasAdministrativo(
       ? toDDMMYYYY(c.comprobantes[0].subido_en)
       : undefined,
     fotoCarnet: c.Socio.fotoCarnet ?? null,
+    actividadIds: c.cuotaXactividad.map((x) => x.actividadId),
+    actividades: c.cuotaXactividad.map((x) => ({
+      id: x.Actividad.id,
+      nombre: x.Actividad.nombre,
+      monto: Number(x.monto),
+    })),
   }));
+}
+
+export async function getCuotasActividadesResumen(): Promise<ActividadCuotasResumenDTO[]> {
+  const actividades = await prisma.actividad.findMany({
+    where: { activo: true },
+    select: {
+      id: true,
+      nombre: true,
+      monto: true,
+      activo: true,
+      _count: { select: { socios: true } },
+    },
+  });
+
+  const actividadIds = actividades.map((a) => a.id);
+  const cuotasPorActividad = actividadIds.length
+    ? await prisma.cuotaXactividad.findMany({
+        where: { actividadId: { in: actividadIds } },
+        select: {
+          actividadId: true,
+          Cuota: { select: { estado: true } },
+        },
+      })
+    : [];
+
+  const resumen = new Map<number, {
+    total: number;
+    pendientes: number;
+    enRevision: number;
+    pagadas: number;
+    vencidas: number;
+  }>();
+
+  for (const item of cuotasPorActividad) {
+    const actual = resumen.get(item.actividadId) || {
+      total: 0,
+      pendientes: 0,
+      enRevision: 0,
+      pagadas: 0,
+      vencidas: 0,
+    };
+
+    actual.total++;
+    if (item.Cuota.estado === estado_cuota.PENDIENTE) actual.pendientes++;
+    if (item.Cuota.estado === estado_cuota.EN_REVISION) actual.enRevision++;
+    if (item.Cuota.estado === estado_cuota.PAGADA) actual.pagadas++;
+    if (item.Cuota.estado === estado_cuota.VENCIDA) actual.vencidas++;
+    resumen.set(item.actividadId, actual);
+  }
+
+  return actividades
+    .map((a) => {
+      const data = resumen.get(a.id) || {
+        total: 0,
+        pendientes: 0,
+        enRevision: 0,
+        pagadas: 0,
+        vencidas: 0,
+      };
+
+      return {
+        id: a.id,
+        nombre: a.nombre,
+        monto: Number(a.monto),
+        activo: a.activo,
+        sociosInscriptos: a._count.socios,
+        cuotasTotales: data.total,
+        cuotasPendientes: data.pendientes,
+        cuotasEnRevision: data.enRevision,
+        cuotasPagadas: data.pagadas,
+        cuotasVencidas: data.vencidas,
+      };
+    })
+    .sort((a, b) => {
+      const aIdx = ACTIVIDADES_PRINCIPALES.findIndex((x) => x.toLowerCase() === a.nombre.toLowerCase());
+      const bIdx = ACTIVIDADES_PRINCIPALES.findIndex((x) => x.toLowerCase() === b.nombre.toLowerCase());
+      if (aIdx !== -1 || bIdx !== -1) {
+        return (aIdx === -1 ? Number.MAX_SAFE_INTEGER : aIdx) - (bIdx === -1 ? Number.MAX_SAFE_INTEGER : bIdx);
+      }
+      return a.nombre.localeCompare(b.nombre, 'es');
+    });
 }
 
 // Cambiar estado de cuota (ADMINISTRATIVO)

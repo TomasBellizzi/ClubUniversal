@@ -30,6 +30,13 @@ router.post(
 // ADMINISTRATIVO
 
 router.get(
+  "/administrativo/actividades",
+  authenticate,
+  authorize("ADMINISTRATIVO", "ADMIN"),
+  cuotaController.getCuotasActividadesResumen
+);
+
+router.get(
   "/administrativo",
   authenticate,
   authorize("ADMINISTRATIVO", "ADMIN"),

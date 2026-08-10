@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
 import { useForm } from "react-hook-form";
+import { useLocation } from "react-router-dom";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { api } from "../service/api";
@@ -30,6 +31,8 @@ const schema = yup.object({
 });
 
 function CuotasAdmin() {
+  const location = useLocation();
+  const actividadInicialId = location.state?.actividadId ? String(location.state.actividadId) : "";
   const [loading, setLoading] = useState(false);
   const [actividades, setActividades] = useState([]);
   const [socios, setSocios] = useState([]);
@@ -52,7 +55,7 @@ function CuotasAdmin() {
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: {
-      actividadId: "",
+      actividadId: actividadInicialId,
       montoBase: "",
       mes: mesActual,
       fechaVenc: ultimoDiaDelMesActual,

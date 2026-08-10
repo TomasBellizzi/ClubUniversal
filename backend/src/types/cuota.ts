@@ -22,6 +22,7 @@ export interface CuotaSocioDTO {
 // ---- ADMINISTRATIVO ----
 export interface CuotaAdministrativoDTO {
   id: number;
+  socioId?: number;
   socioNombre: string;
   dni?: number;
   mes: Mes;
@@ -32,6 +33,25 @@ export interface CuotaAdministrativoDTO {
   motivoRevision?: string;
   fechaVencimiento?: string; // opcional
   metodoPago?: $Enums.FormaDePago; // opcional
+  actividadIds?: number[];
+  actividades?: {
+    id: number;
+    nombre: string;
+    monto: number;
+  }[];
+}
+
+export interface ActividadCuotasResumenDTO {
+  id: number;
+  nombre: string;
+  monto: number;
+  activo: boolean;
+  sociosInscriptos: number;
+  cuotasTotales: number;
+  cuotasPendientes: number;
+  cuotasEnRevision: number;
+  cuotasPagadas: number;
+  cuotasVencidas: number;
 }
 
 // ---- ADMINISTRADOR ----
@@ -62,10 +82,15 @@ export interface EnviarComprobanteResponse {
 export interface GetCuotasAdministrativoQuery {
   estado?: EstadoCuota | 'Todas';
   nombre?: string;
+  actividadId?: string | number;
 }
 
 export interface GetCuotasAdministrativoResponse {
   cuotas: CuotaAdministrativoDTO[];
+}
+
+export interface GetCuotasActividadesResumenResponse {
+  actividades: ActividadCuotasResumenDTO[];
 }
 
 export interface UpdateEstadoCuotaRequest {
