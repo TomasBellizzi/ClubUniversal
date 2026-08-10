@@ -5,6 +5,7 @@ import { authenticate, authorize } from "../middlewares/auth.middleware";
 import * as cuotaController from "../controllers/cuotaController";
 import * as cuotaValidation from "../validations/cuotas.validation";
 import { upload } from '../middlewares/comprobantes.middleware';
+import { adminReadLimiter } from "../middlewares/rateLimit.middleware";
 const router = Router();
 
 
@@ -31,6 +32,7 @@ router.post(
 
 router.get(
   "/administrativo/actividades",
+  adminReadLimiter,
   authenticate,
   authorize("ADMINISTRATIVO", "ADMIN"),
   cuotaController.getCuotasActividadesResumen
