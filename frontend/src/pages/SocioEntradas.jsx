@@ -12,6 +12,13 @@ import { emailService } from "../service/emailService";
 import { entradaSchema } from "../validations/entradasSchema";
 
 const MP_PENDING_KEY = "mercadoPagoEntradaPendiente";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+
+function buildApiUrl(path) {
+  if (!API_BASE_URL) return `/api${path}`;
+  return `${API_BASE_URL}/api${path}`;
+}
 
 export default function SocioEntradas() {
   const [eventos, setEventos] = useState([]);
@@ -23,7 +30,6 @@ export default function SocioEntradas() {
   const [usuario, setUsuario] = useState(null);
   const location = useLocation();
 
-  const API_BASE = `${import.meta.env.VITE_API_URL}/api`;
   const token = localStorage.getItem("token");
 
   const {
@@ -39,7 +45,7 @@ export default function SocioEntradas() {
 
   const fetchEventos = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/eventos`, {
+      const res = await fetch(buildApiUrl("/eventos"), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Error al cargar eventos");
@@ -49,11 +55,11 @@ export default function SocioEntradas() {
       console.error(error);
       alert(error.message);
     }
-  }, [API_BASE, token]);
+  }, [token]);
 
   const fetchMisEntradas = useCallback(async (socioId) => {
     try {
-      const res = await fetch(`${API_BASE}/entradas?socioId=${socioId}`, {
+      const res = await fetch(buildApiUrl(`/entradas?socioId=${socioId}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Error al cargar entradas");
@@ -63,7 +69,7 @@ export default function SocioEntradas() {
       console.error(err);
       alert(err.message);
     }
-  }, [API_BASE, token]);
+  }, [token]);
 
   const handlePagoAprobado = useCallback(async (entradaId) => {
     try {
@@ -72,7 +78,7 @@ export default function SocioEntradas() {
 
       await fetchMisEntradas(usuarioData.socio.id);
 
-      const res = await fetch(`${API_BASE}/entradas/${entradaId}`, {
+      const res = await fetch(buildApiUrl(`/entradas/${entradaId}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("No se pudo recuperar la entrada pagada");
@@ -100,7 +106,7 @@ export default function SocioEntradas() {
       console.error(error);
       alert(error.message);
     }
-  }, [API_BASE, fetchMisEntradas, token]);
+  }, [fetchMisEntradas, token]);
 
   const conciliarPagoPendiente = useCallback(async () => {
     const pendingRaw = localStorage.getItem(MP_PENDING_KEY);
@@ -111,7 +117,7 @@ export default function SocioEntradas() {
       if (!pending?.entradaId) return;
 
       const res = await axios.post(
-        `${API_BASE}/eventos/mercadopago/entradas/${pending.entradaId}/conciliar`,
+        buildApiUrl(`/eventos/mercadopago/entradas/${pending.entradaId}/conciliar`),
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -127,7 +133,7 @@ export default function SocioEntradas() {
     } catch (error) {
       console.error(error);
     }
-  }, [API_BASE, handlePagoAprobado, token]);
+  }, [handlePagoAprobado, token]);
 
   useEffect(() => {
     const usuarioData = JSON.parse(localStorage.getItem("usuario"));
@@ -169,7 +175,7 @@ export default function SocioEntradas() {
     setLoading(true);
     try {
       const res = await axios.post(
-        `${API_BASE}/eventos/${eventoSeleccionado.id}/mercadopago/preferencia`,
+        buildApiUrl(`/eventos/${eventoSeleccionado.id}/mercadopago/preferencia`),
         { cantidad: Number(data.cantidad) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -189,7 +195,7 @@ export default function SocioEntradas() {
       window.location.href = redirectUrl;
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || error.message);
+      alert(error.response?.data?.error || error.response?.data?.message || error.message);
       setLoading(false);
     }
   };
