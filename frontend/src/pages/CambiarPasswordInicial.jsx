@@ -5,6 +5,31 @@ import Header from "../components/HeaderIni";
 import { getToken } from "../helpers/auth";
 import { useAuth } from "../hooks/useAuth";
 
+const PASSWORD_REQUIREMENTS = [
+  "Debe tener al menos 8 caracteres.",
+  "Debe contener al menos una mayuscula.",
+  "Debe contener al menos un numero.",
+  "Debe ser distinta a la contrasena actual.",
+];
+
+function getPasswordErrorMessage(body) {
+  const messages = Array.isArray(body?.errors)
+    ? body.errors.map((error) => error?.message).filter(Boolean)
+    : [];
+
+  if (!messages.length) return body?.message || "No se pudo cambiar la contrasena.";
+
+  return `${body?.message || "Datos invalidos"}: ${messages.join(". ")}. Requisitos: ${PASSWORD_REQUIREMENTS.join(" ")}`;
+}
+
+function validatePassword(password) {
+  const errors = [];
+  if (password.length < 8) errors.push("Debe tener al menos 8 caracteres.");
+  if (!/[A-Z]/.test(password)) errors.push("Debe contener al menos una mayuscula.");
+  if (!/[0-9]/.test(password)) errors.push("Debe contener al menos un numero.");
+  return errors;
+}
+
 function CambiarPasswordInicial() {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -23,6 +48,12 @@ function CambiarPasswordInicial() {
       return;
     }
 
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length) {
+      setError(`Datos invalidos. Requisitos: ${passwordErrors.join(" ")}`);
+      return;
+    }
+
     try {
       setLoading(true);
       const res = await fetch(
@@ -38,7 +69,7 @@ function CambiarPasswordInicial() {
       );
 
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.message || "No se pudo cambiar la contrasena.");
+      if (!res.ok) throw new Error(getPasswordErrorMessage(body));
 
       logout();
       alert("Contrasena actualizada. Inicia sesion nuevamente.");
@@ -83,6 +114,9 @@ function CambiarPasswordInicial() {
                       {mostrarPassword ? "Ocultar" : "Mostrar"}
                     </Button>
                   </InputGroup>
+                  <Form.Text className="text-muted">
+                    Requisitos: minimo 8 caracteres, una mayuscula y un numero.
+                  </Form.Text>
                 </Form.Group>
 
                 <Form.Group className="mb-4">
