@@ -18,6 +18,7 @@ El frontend ahora muestra el campo `error` devuelto por el middleware del backen
 
 Durante la revision posterior se normalizo la construccion de URLs de API en `SocioEntradas.jsx`, quitando la dependencia directa de interpolar `VITE_API_URL` en cada endpoint. Ahora se elimina una barra final si existe, se usa `localhost:3000` en desarrollo cuando falta la variable y en produccion se conserva el fallback relativo `/api`.
 
+
 Tambien se reviso la carga inicial de `Mis Entradas` y `Proximos Eventos`. La pantalla ya no muestra `alert()` por errores transitorios de cargas automaticas, algo especialmente molesto en desarrollo con React `StrictMode`, donde los efectos pueden ejecutarse mas de una vez. En su lugar usa estados de carga y mensajes inline solo cuando no hay datos para mostrar. El controlador de entradas ahora delega errores al middleware comun para mantener respuestas normalizadas.
 
 Se ajusto el texto del modal de compra para no mencionar cuentas de prueba. El mensaje ahora indica de forma neutral que el socio sera redirigido a Mercado Pago para completar el pago.

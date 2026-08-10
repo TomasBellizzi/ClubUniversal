@@ -25,6 +25,7 @@ async function getResponseError(res, fallback) {
   return data?.error || data?.message || fallback;
 }
 
+
 export default function SocioEntradas() {
   const [eventos, setEventos] = useState([]);
   const [misEntradas, setMisEntradas] = useState([]);
