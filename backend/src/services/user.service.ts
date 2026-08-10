@@ -92,6 +92,7 @@ export async function createAdministrativo(data: CreateUserRequest): Promise<Use
       email: data.email,
       password: hashedPassword,
       rol: 'ADMINISTRATIVO',
+      requiereCambioPassword: false,
       administrativo: data.administrativo
         ? {
             create: {
@@ -102,7 +103,7 @@ export async function createAdministrativo(data: CreateUserRequest): Promise<Use
             },
           }
         : undefined,
-    },
+    } as any,
     include: { administrativo: true },
   });
 
@@ -242,6 +243,7 @@ export async function registerSocio(data: {
       email: data.email,
       password: hashedPassword,
       rol: "SOCIO",
+      requiereCambioPassword: true,
       socio: {
         create: {
           nombre: data.nombre,
@@ -254,7 +256,7 @@ export async function registerSocio(data: {
           email: data.email,
         },
       },
-    },
+    } as any,
     include: { socio: true },
   });
 

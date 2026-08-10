@@ -1,15 +1,24 @@
 import { Router } from 'express';
 import * as authController from '../controllers/auth.controller';
 import { validate } from '../middlewares/validation.middleware';
-import { LoginSchema } from '../validations/auth.validation';
+import { ChangeInitialPasswordSchema, LoginSchema } from '../validations/auth.validation';
 import { RegisterSchema } from '../validations/user.validation';
 import { authenticate, authorize } from '../middlewares/auth.middleware';
+import { authSensitiveLimiter } from '../middlewares/rateLimit.middleware';
 
 const router = Router();
 
 router.post('/login',
    validate(LoginSchema),
    authController.login
+);
+
+router.patch(
+   '/change-initial-password',
+   authSensitiveLimiter,
+   authenticate,
+   validate(ChangeInitialPasswordSchema),
+   authController.changeInitialPassword
 );
 
 router.post(

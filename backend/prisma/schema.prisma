@@ -69,6 +69,7 @@ model Usuario {
   password String
   rol      String
   creadoEn DateTime @default(now())
+  requiereCambioPassword Boolean @default(false)
   socio    Socio?
   administrativo Administrativo?
 }

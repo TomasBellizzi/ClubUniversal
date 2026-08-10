@@ -153,7 +153,11 @@ function ActividadesAdmin() {
     }
   };
 
-  // Eliminar (solo admin)
+  const puedeEliminarActividades = ["ADMIN", "ADMINISTRATIVO"].includes(
+    String(rol || "").toUpperCase()
+  );
+
+  // Eliminar actividad de forma fisica
   const handleEliminarActividad = async () => {
     if (!actividadSeleccionada) return;
     try {
@@ -322,18 +326,6 @@ function ActividadesAdmin() {
                               <i className="bi bi-dash-circle"></i> Dar de baja
                             </Button>
 
-                            {rol === "ADMIN" && (
-                              <Button
-                                variant="outline-danger"
-                                className="d-flex align-items-center gap-1"
-                                onClick={() => {
-                                  setActividadSeleccionada(actividad);
-                                  setMostrarModalEliminar(true);
-                                }}
-                              >
-                                <i className="bi bi-trash3-fill"></i> Eliminar
-                              </Button>
-                            )}
                           </>
                         ) : (
                           <Button
@@ -342,6 +334,18 @@ function ActividadesAdmin() {
                             onClick={() => handleDarDeAlta(actividad.id)}
                           >
                             <i className="bi bi-arrow-up-circle"></i> Dar de alta
+                          </Button>
+                        )}
+                        {puedeEliminarActividades && (
+                          <Button
+                            variant="outline-danger"
+                            className="d-flex align-items-center gap-1"
+                            onClick={() => {
+                              setActividadSeleccionada(actividad);
+                              setMostrarModalEliminar(true);
+                            }}
+                          >
+                            <i className="bi bi-trash3-fill"></i> Eliminar
                           </Button>
                         )}
                       </div>

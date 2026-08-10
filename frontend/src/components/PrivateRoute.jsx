@@ -1,9 +1,10 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { getRole, getToken, getUser } from '../helpers/auth';
 
-export function PrivateRoute({ children, allowedRoles = [] }) {
+export function PrivateRoute({ children, allowedRoles = [], allowInitialPasswordChange = false }) {
   const { isAuthenticated, loading, user, hasRole } = useAuth();
+  const location = useLocation();
 
   if (loading) return <div style={{ padding: 16 }}>Verificando autorización…</div>;
 
@@ -13,6 +14,13 @@ export function PrivateRoute({ children, allowedRoles = [] }) {
 
   if ((!isAuthenticated || !user) && !hasStoredAuth) {
     return <Navigate to="/" replace />;
+  }
+
+  const mustChangePassword =
+    storedUser?.requiereCambioPassword === true || user?.requiereCambioPassword === true;
+
+  if (mustChangePassword && !allowInitialPasswordChange) {
+    return <Navigate to="/cambiar-password-inicial" replace state={{ from: location.pathname }} />;
   }
 
   if (!allowedRoles.length) {

@@ -26,10 +26,25 @@ const isPdfComprobante = (url) =>
 
 const toUiEstado = (estadoDb) => {
   const e = String(estadoDb || "").toUpperCase();
-  if (e === "EN_REVISION") return "En Revisión";
+  if (e === "EN_REVISION") return "En Revision";
   if (e === "PAGADA" || e === "APROBADA") return "Aprobada";
+  if (e === "VENCIDA") return "Vencida";
   return "Pendiente";
 };
+
+const mapCuotaToRow = (r) => ({
+  id: r.id,
+  socioId: r.socioId,
+  nombre: r.socioNombre,
+  dni: r.dni,
+  mes: r.mes,
+  monto: r.monto,
+  estadoDb: r.estado,
+  estadoUi: toUiEstado(r.estado),
+  comprobanteUrl: r.comprobanteUrl,
+  fotoCarnet: r.fotoCarnet,
+  actividades: r.actividades || [],
+});
 
 function CuotasAdminPage() {
   const location = useLocation();
@@ -37,7 +52,10 @@ function CuotasAdminPage() {
   const [busqueda, setBusqueda] = useState(defId.toString());
   const [filtro, setFiltro] = useState("Todas");
   const [loading, setLoading] = useState(false);
+  const [loadingActividades, setLoadingActividades] = useState(false);
   const [cuotas, setCuotas] = useState([]);
+  const [actividades, setActividades] = useState([]);
+  const [actividadSeleccionada, setActividadSeleccionada] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedCuota, setSelectedCuota] = useState(null);
   const navigate = useNavigate();
@@ -51,51 +69,63 @@ function CuotasAdminPage() {
   useEffect(() => {
     let mounted = true;
 
-    const fetchAll = async () => {
+    const fetchActividades = async () => {
       try {
-        setLoading(true);
-        const res = await api.get("/api/cuotas/administrativo");
-        const cuotasDb = Array.isArray(res.data?.cuotas)
-          ? res.data.cuotas
+        setLoadingActividades(true);
+        const res = await api.get("/api/cuotas/administrativo/actividades");
+        const actividadesDb = Array.isArray(res.data?.actividades)
+          ? res.data.actividades
           : Array.isArray(res.data)
           ? res.data
           : [];
 
-        if (!cuotasDb?.length) {
-          if (mounted) setCuotas([]);
-          return;
-        }
-
-        const rows = cuotasDb.map((r) => ({
-          id: r.id,
-          nombre: r.socioNombre || (r.dni ? `Socio DNI ${r.dni}` : "Socio"),
-          dni: r.dni ?? "",
-          monto: r.monto,
-          estadoUi: toUiEstado(r.estado),
-          estadoDb: r.estado,
-          comprobanteUrl:
-            r.comprobanteUrl ??
-            (Array.isArray(r.comprobantes)
-              ? r.comprobantes.find((c) => c.activo)?.url ?? null
-              : null),
-          mes: r.mes,
-          fotoCarnet: r.fotoCarnet ?? null,
-        }));
-
-        if (mounted) setCuotas(rows);
+        if (mounted) setActividades(actividadesDb);
       } catch (err) {
-        console.error("Error cargando cuotas:", err);
-        alert("No se pudieron cargar las cuotas. Intentá nuevamente.");
+        console.error("Error cargando resumen de cuotas por actividad:", err);
+        alert("No se pudieron cargar las actividades. Intenta nuevamente.");
       } finally {
-        setLoading(false);
+        if (mounted) setLoadingActividades(false);
       }
     };
 
-    fetchAll();
+    fetchActividades();
     return () => {
       mounted = false;
     };
   }, []);
+
+  const fetchCuotasActividad = async (actividad) => {
+    try {
+      setActividadSeleccionada(actividad);
+      setBusqueda("");
+      setFiltro("Todas");
+      setCuotas([]);
+      setLoading(true);
+
+      const res = await api.get("/api/cuotas/administrativo", {
+        params: { actividadId: actividad.id },
+      });
+      const cuotasDb = Array.isArray(res.data?.cuotas)
+        ? res.data.cuotas
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+
+      setCuotas(cuotasDb.map(mapCuotaToRow));
+    } catch (err) {
+      console.error("Error cargando cuotas de la actividad:", err);
+      alert("No se pudieron cargar las cuotas de esta actividad.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const volverAActividades = () => {
+    setActividadSeleccionada(null);
+    setCuotas([]);
+    setBusqueda(defId.toString());
+    setFiltro("Todas");
+  };
 
   const cuotasFiltradas = useMemo(() => {
     const q = (busqueda || "").toLowerCase().trim();
@@ -139,22 +169,25 @@ function CuotasAdminPage() {
           )
         );
         cerrarModal();
-        alert(`✅ Cuota ${estado === "Aprobada" ? "aprobada" : "rechazada"} correctamente.`);
+        alert(`Cuota ${estado === "Aprobada" ? "aprobada" : "rechazada"} correctamente.`);
       } else {
         alert("No se pudo actualizar el estado.");
       }
     } catch (err) {
-      console.error("❌ Error al cambiar estado:", err);
+      console.error("Error al cambiar estado:", err);
       alert("No se pudo actualizar el estado.");
     }
   };
 
-  const handleGenerarCuotas = () => {
+  const handleGenerarCuotas = (actividad) => {
     if (!canGenerateCuotas) {
       alert("Solo un administrador puede generar cuotas.");
       return;
     }
-    navigate("/generar-cuota");
+
+    navigate("/generar-cuota", {
+      state: actividad ? { actividadId: actividad.id } : undefined,
+    });
   };
 
   return (
@@ -163,116 +196,170 @@ function CuotasAdminPage() {
 
       <div className="container cuotas-admin-container">
         <div className="card shadow-sm border-0 rounded-4 p-4">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <h4 className="mb-0 text-success fw-bold">Cuotas</h4>
-            <hr className="mt-2 mb-3" style={{ borderTop: '2px solid #198754', opacity: 0.3 }} />
-            {loading && <Spinner animation="border" size="sm" />}
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div className="d-flex align-items-center gap-3">
+              {actividadSeleccionada && (
+                <Button variant="outline-secondary" size="sm" onClick={volverAActividades}>
+                  Volver
+                </Button>
+              )}
+              <h4 className="mb-0 text-success fw-bold">
+                {actividadSeleccionada
+                  ? `Cuotas - ${actividadSeleccionada.nombre}`
+                  : "Cuotas por Actividad"}
+              </h4>
+            </div>
+            {(loading || loadingActividades) && <Spinner animation="border" size="sm" />}
           </div>
 
-          {/* Filtros */}
-          <div className="d-flex flex-wrap align-items-center gap-3 mb-4">
-            <Form.Control
-              type="text"
-              placeholder="Buscar por nombre o DNI..."
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              style={{ maxWidth: 280 }}
-            />
-            {["Todas", "Aprobada", "Pendiente", "En Revisión"].map((estado) => (
-              <Button
-                key={estado}
-                variant={filtro === estado ? "success" : "outline-secondary"}
-                onClick={() => setFiltro(estado)}
-              >
-                {estado}
-              </Button>
-            ))}
-          </div>
+          {!actividadSeleccionada ? (
+            <>
+              <div className="d-flex justify-content-end mb-3">
+                <Button variant="success" onClick={() => handleGenerarCuotas()} className="px-4">
+                  Generar cuotas
+                </Button>
+              </div>
 
-          {/* Listado */}
-          <div className="cuotas-list">
-            {loading && <div className="text-center py-3 text-muted">Cargando cuotas...</div>}
-            {!loading && cuotasFiltradas.length === 0 && (
-              <div className="text-center py-3 text-muted">No hay resultados.</div>
-            )}
+              <div className="actividades-cuotas-grid">
+                {loadingActividades && (
+                  <div className="text-center py-3 text-muted">Cargando actividades...</div>
+                )}
+                {!loadingActividades && actividades.length === 0 && (
+                  <div className="text-center py-3 text-muted">No hay actividades para mostrar.</div>
+                )}
+                {!loadingActividades &&
+                  actividades.map((actividad) => (
+                    <div key={actividad.id} className="actividad-cuota-card">
+                      <div>
+                        <div className="d-flex justify-content-between align-items-start gap-3">
+                          <h5 className="mb-1 fw-bold">{actividad.nombre}</h5>
+                          <Badge bg="light" text="dark">
+                            ${actividad.monto}
+                          </Badge>
+                        </div>
+                        <div className="text-muted small">
+                          {actividad.sociosInscriptos} socios inscriptos
+                        </div>
+                      </div>
 
-            {!loading &&
-              cuotasFiltradas.map((c) => (
-                <div
-                  key={c.id}
-                  className="d-flex align-items-center justify-content-between p-3 mb-3 rounded-4 shadow-sm"
-                  style={{ background: "#fafafa", border: "1px solid #e5e5e5" }}
-                >
-                  {/* Foto + nombre */}
-                  <div className="d-flex align-items-center" style={{ gap: 12 }}>
-                    <div
-                      className="rounded-circle border border-secondary"
-                      style={{
-                        width: 50,
-                        height: 50,
-                        overflow: "hidden",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <img
-                        src={c.fotoCarnet || logoUniversal}
-                        alt={`Foto de ${c.nombre}`}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        onError={(e) => (e.target.src = logoUniversal)}
-                      />
-                    </div>
+                      <div className="actividad-cuota-stats">
+                        <span>Total: {actividad.cuotasTotales}</span>
+                        <span>Pendientes: {actividad.cuotasPendientes}</span>
+                        <span>En revision: {actividad.cuotasEnRevision}</span>
+                        <span>Pagadas: {actividad.cuotasPagadas}</span>
+                        <span>Vencidas: {actividad.cuotasVencidas}</span>
+                      </div>
 
-                    <div>
-                      <div className="fw-semibold">{c.nombre}</div>
-                      <div className="text-muted small">
-                        DNI: {c.dni || "—"} · Mes: {c.mes || "—"}
+                      <div className="d-flex flex-wrap gap-2 justify-content-end">
+                        <Button
+                          variant="outline-success"
+                          size="sm"
+                          onClick={() => fetchCuotasActividad(actividad)}
+                        >
+                          Ver cuotas
+                        </Button>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          onClick={() => handleGenerarCuotas(actividad)}
+                        >
+                          Generar cuotas
+                        </Button>
                       </div>
                     </div>
-                  </div>
+                  ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="d-flex flex-wrap align-items-center gap-3 mb-4">
+                <Form.Control
+                  type="text"
+                  placeholder="Buscar por nombre o DNI..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  style={{ maxWidth: 280 }}
+                />
+                {["Todas", "Aprobada", "Pendiente", "En Revision", "Vencida"].map((estado) => (
+                  <Button
+                    key={estado}
+                    variant={filtro === estado ? "success" : "outline-secondary"}
+                    onClick={() => setFiltro(estado)}
+                  >
+                    {estado}
+                  </Button>
+                ))}
+              </div>
 
-                  {/* Monto, estado y acción */}
-                  <div className="d-flex align-items-center gap-3">
-                    <Badge bg="light" text="dark">
-                      ${c.monto}
-                    </Badge>
-                    <Badge
-                      bg={
-                        c.estadoUi === "Aprobada"
-                          ? "success"
-                          : c.estadoUi === "En Revisión"
-                          ? "warning"
-                          : "secondary"
-                      }
-                      text={c.estadoUi === "En Revisión" ? "dark" : "white"}
-                    >
-                      {c.estadoUi}
-                    </Badge>
+              <div className="cuotas-list">
+                {loading && <div className="text-center py-3 text-muted">Cargando cuotas...</div>}
+                {!loading && cuotasFiltradas.length === 0 && (
+                  <div className="text-center py-3 text-muted">No hay resultados.</div>
+                )}
 
-                    {c.estadoUi === "En Revisión" && c.comprobanteUrl && (
-                      <Button
-                        size="sm"
-                        style={{ backgroundColor: "#e9f7ef", color: "#198754", border: "none" }}
-                        onClick={() => abrirModal(c)}
-                      >
-                        Ver comprobante
-                      </Button>
+                {!loading &&
+                  cuotasFiltradas.map((c) => (
+                    <div key={c.id} className="cuota-admin-row">
+                      <div className="d-flex align-items-center cuota-admin-persona">
+                        <div className="cuota-admin-avatar">
+                          <img
+                            src={c.fotoCarnet || logoUniversal}
+                            alt={`Foto de ${c.nombre}`}
+                            onError={(e) => {
+                              e.currentTarget.src = logoUniversal;
+                            }}
+                          />
+                        </div>
 
-                    )}
-                  </div>
-                </div>
-              ))}
-          </div>
+                        <div>
+                          <div className="fw-semibold">{c.nombre}</div>
+                          <div className="text-muted small">
+                            DNI: {c.dni || "-"} - Mes: {c.mes || "-"}
+                          </div>
+                        </div>
+                      </div>
 
-          {/* Botón generar cuotas */}
-          <div className="text-end mt-4">
-            <Button variant="success" onClick={handleGenerarCuotas} className="px-4">
-                Generar cuotas
-            </Button>
-          </div>
+                      <div className="d-flex align-items-center gap-3 cuota-admin-actions">
+                        <Badge bg="light" text="dark">
+                          ${c.monto}
+                        </Badge>
+                        <Badge
+                          bg={
+                            c.estadoUi === "Aprobada"
+                              ? "success"
+                              : c.estadoUi === "En Revision"
+                              ? "warning"
+                              : c.estadoUi === "Vencida"
+                              ? "danger"
+                              : "secondary"
+                          }
+                          text={c.estadoUi === "En Revision" ? "dark" : "white"}
+                        >
+                          {c.estadoUi}
+                        </Badge>
+
+                        {c.estadoUi === "En Revision" && c.comprobanteUrl && (
+                          <Button
+                            size="sm"
+                            style={{
+                              backgroundColor: "#e9f7ef",
+                              color: "#198754",
+                              border: "none",
+                            }}
+                            onClick={() => abrirModal(c)}
+                          >
+                            Ver comprobante
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Modal comprobante */}
       <Modal show={showModal} onHide={cerrarModal} size="lg" centered>
         <Modal.Header closeButton className="bg-success text-white">
           <Modal.Title>Comprobante de {selectedCuota?.nombre}</Modal.Title>
@@ -294,17 +381,23 @@ function CuotasAdminPage() {
               />
             )
           ) : (
-            <p className="text-muted">No se encontró el comprobante.</p>
+            <p className="text-muted">No se encontro el comprobante.</p>
           )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={cerrarModal}>
             Cerrar
           </Button>
-          <Button variant="danger" onClick={() => cambiarEstado(selectedCuota.id, "Rechazada")}>
+          <Button
+            variant="danger"
+            onClick={() => selectedCuota && cambiarEstado(selectedCuota.id, "Rechazada")}
+          >
             Rechazar
           </Button>
-          <Button variant="success" onClick={() => cambiarEstado(selectedCuota.id, "Aprobada")}>
+          <Button
+            variant="success"
+            onClick={() => selectedCuota && cambiarEstado(selectedCuota.id, "Aprobada")}
+          >
             Aprobar
           </Button>
         </Modal.Footer>

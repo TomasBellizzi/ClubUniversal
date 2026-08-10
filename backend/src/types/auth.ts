@@ -5,6 +5,11 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ChangeInitialPasswordRequest {
+  newPassword: string;
+  confirmPassword: string;
+}
+
 export interface LoginResponse {
   success: boolean;
   data: {

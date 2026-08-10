@@ -1,7 +1,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import * as cuotaService from '../services/cuotaService';
-import { GetCuotasSocioResponse, GetCuotasAdministrativoResponse, GetCuotasAdminResponse, EnviarComprobanteResponse, UpdateEstadoCuotaRequest, UpdateEstadoCuotaResponse, GenerarCuotasRequest, GenerarCuotasResponse, } from '../types/cuota';
+import { GetCuotasSocioResponse, GetCuotasAdministrativoResponse, GetCuotasActividadesResumenResponse, GetCuotasAdminResponse, EnviarComprobanteResponse, UpdateEstadoCuotaRequest, UpdateEstadoCuotaResponse, GenerarCuotasRequest, GenerarCuotasResponse, } from '../types/cuota';
 
 // SOCIO
 export async function getCuotasSocio(
@@ -55,6 +55,19 @@ export async function getCuotasAdministrativo(
     const filtros = req.query;
     const cuotas = await cuotaService.getCuotasAdministrativo(filtros);
     res.json({ cuotas });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getCuotasActividadesResumen(
+  req: Request,
+  res: Response<GetCuotasActividadesResumenResponse>,
+  next: NextFunction
+) {
+  try {
+    const actividades = await cuotaService.getCuotasActividadesResumen();
+    res.json({ actividades });
   } catch (error) {
     next(error);
   }

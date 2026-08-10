@@ -20,6 +20,26 @@ export async function login(req: Request, res: Response) {
   }
 }
 
+export async function changeInitialPassword(req: Request, res: Response) {
+  try {
+    const userId = Number(req.user?.id);
+    if (!userId || Number.isNaN(userId)) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuario no autenticado',
+      });
+    }
+
+    const result = await authService.changeInitialPassword(userId, req.body);
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({
+      success: false,
+      message: err.message || 'No se pudo cambiar la contrasena',
+    });
+  }
+}
+
 export async function register(req: Request, res: Response) {
   try {
     const parsed = RegisterSchema.parse(req.body);

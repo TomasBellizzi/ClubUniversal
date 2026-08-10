@@ -39,6 +39,11 @@ function Login() {
       if (token && user) {
         setAuth(token, user.role, user);
 
+        if (user.requiereCambioPassword) {
+          navigate('/cambiar-password-inicial', { replace: true });
+          return;
+        }
+
         switch (user.role) {
           case 'ADMINISTRATIVO':
           case 'ADMIN':
