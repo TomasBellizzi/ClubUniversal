@@ -5,7 +5,17 @@ import Header from "../components/Header";
 import axios from "axios";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { actividadSchema } from "../validations/actividadSchema";
+import { ACTIVIDAD_MONTO_MAXIMO, actividadSchema } from "../validations/actividadSchema";
+
+const formatCurrency = (value) =>
+  Number(value).toLocaleString("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  });
+
+const getErrorMessage = (err, fallback) =>
+  err?.response?.data?.error || err?.response?.data?.message || fallback;
 
 function ActividadesAdmin() {
   const [actividades, setActividades] = useState([]);
@@ -23,6 +33,7 @@ function ActividadesAdmin() {
   const [mostrarInactivas, setMostrarInactivas] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const [accionActividadId, setAccionActividadId] = useState(null);
 
   const token = localStorage.getItem("token");
 
@@ -33,13 +44,14 @@ function ActividadesAdmin() {
   const rol = usuarioStr
     ? JSON.parse(usuarioStr)?.rol || JSON.parse(usuarioStr)?.role || null
     : null;
+  const puedeEliminarActividades = ["ADMIN", "ADMINISTRATIVO"].includes(rol);
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(actividadSchema),
   });
@@ -70,6 +82,7 @@ function ActividadesAdmin() {
   // Agregar actividad
   const onSubmitAgregar = async (data) => {
     try {
+      setError(null);
       const response = await axios.post(
         `${BACKURL}/api/actividades`,
         {
@@ -87,7 +100,7 @@ function ActividadesAdmin() {
       setMostrarModal(false);
     } catch (err) {
       console.error(err);
-      setError("No se pudo crear la actividad.");
+      setError(getErrorMessage(err, "No se pudo crear la actividad."));
     }
   };
 
@@ -95,6 +108,7 @@ function ActividadesAdmin() {
   const onSubmitEditar = async (data) => {
     if (!actividadSeleccionada) return;
     try {
+      setError(null);
       const res = await axios.put(
         `${BACKURL}/api/actividades/${actividadSeleccionada.id}`,
         {
@@ -114,13 +128,15 @@ function ActividadesAdmin() {
       reset();
     } catch (err) {
       console.error(err);
-      setError("No se pudo editar la actividad.");
+      setError(getErrorMessage(err, "No se pudo editar la actividad."));
     }
   };
 
   // 🔻 Dar de baja
   const handleDarDeBaja = async (id) => {
     try {
+      setError(null);
+      setAccionActividadId(id);
       const res = await axios.put(`${BACKURL}/api/actividades/${id}`,
         { activo: false },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -131,13 +147,17 @@ function ActividadesAdmin() {
       );
     } catch (err) {
       console.error(err);
-      setError("No se pudo dar de baja la actividad.");
+      setError(getErrorMessage(err, "No se pudo dar de baja la actividad."));
+    } finally {
+      setAccionActividadId(null);
     }
   };
 
   // Dar de alta
   const handleDarDeAlta = async (id) => {
     try {
+      setError(null);
+      setAccionActividadId(id);
       const res = await axios.put(
         `${BACKURL}/api/actividades/${id}`,
         { activo: true },
@@ -149,14 +169,18 @@ function ActividadesAdmin() {
       );
     } catch (err) {
       console.error(err);
-      setError("No se pudo dar de alta la actividad.");
+      setError(getErrorMessage(err, "No se pudo dar de alta la actividad."));
+    } finally {
+      setAccionActividadId(null);
     }
   };
 
-  // Eliminar (solo admin)
+  // Eliminar de forma definitiva
   const handleEliminarActividad = async () => {
     if (!actividadSeleccionada) return;
     try {
+      setError(null);
+      setAccionActividadId(actividadSeleccionada.id);
       await axios.delete(
        `${BACKURL}/api/actividades/${actividadSeleccionada.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -165,9 +189,12 @@ function ActividadesAdmin() {
         prev.filter((a) => a.id !== actividadSeleccionada.id)
       );
       setMostrarModalEliminar(false);
+      setActividadSeleccionada(null);
     } catch (err) {
       console.error(err);
-      setError("No se pudo eliminar la actividad.");
+      setError(getErrorMessage(err, "No se pudo eliminar la actividad."));
+    } finally {
+      setAccionActividadId(null);
     }
   };
 
@@ -318,11 +345,12 @@ function ActividadesAdmin() {
                               variant="outline-warning"
                               className="d-flex align-items-center gap-1"
                               onClick={() => handleDarDeBaja(actividad.id)}
+                              disabled={accionActividadId === actividad.id}
                             >
                               <i className="bi bi-dash-circle"></i> Dar de baja
                             </Button>
 
-                            {rol === "ADMIN" && (
+                            {puedeEliminarActividades && (
                               <Button
                                 variant="outline-danger"
                                 className="d-flex align-items-center gap-1"
@@ -330,19 +358,37 @@ function ActividadesAdmin() {
                                   setActividadSeleccionada(actividad);
                                   setMostrarModalEliminar(true);
                                 }}
+                                disabled={accionActividadId === actividad.id}
                               >
                                 <i className="bi bi-trash3-fill"></i> Eliminar
                               </Button>
                             )}
                           </>
                         ) : (
-                          <Button
-                            variant="success"
-                            className="d-flex align-items-center gap-1"
-                            onClick={() => handleDarDeAlta(actividad.id)}
-                          >
-                            <i className="bi bi-arrow-up-circle"></i> Dar de alta
-                          </Button>
+                          <>
+                            <Button
+                              variant="success"
+                              className="d-flex align-items-center gap-1"
+                              onClick={() => handleDarDeAlta(actividad.id)}
+                              disabled={accionActividadId === actividad.id}
+                            >
+                              <i className="bi bi-arrow-up-circle"></i> Dar de alta
+                            </Button>
+
+                            {puedeEliminarActividades && (
+                              <Button
+                                variant="outline-danger"
+                                className="d-flex align-items-center gap-1"
+                                onClick={() => {
+                                  setActividadSeleccionada(actividad);
+                                  setMostrarModalEliminar(true);
+                                }}
+                                disabled={accionActividadId === actividad.id}
+                              >
+                                <i className="bi bi-trash3-fill"></i> Eliminar
+                              </Button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -373,8 +419,12 @@ function ActividadesAdmin() {
               <Button variant="secondary" onClick={() => setMostrarModalEliminar(false)}>
                 Cancelar
               </Button>
-              <Button variant="danger" onClick={handleEliminarActividad}>
-                Eliminar
+              <Button
+                variant="danger"
+                onClick={handleEliminarActividad}
+                disabled={accionActividadId === actividadSeleccionada?.id}
+              >
+                {accionActividadId === actividadSeleccionada?.id ? "Eliminando..." : "Eliminar"}
               </Button>
             </Modal.Footer>
           </Modal>
@@ -395,13 +445,22 @@ function ActividadesAdmin() {
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>Monto</Form.Label>
-                  <Form.Control type="number" {...register("monto")} />
+                  <Form.Control
+                    type="number"
+                    min="1"
+                    max={ACTIVIDAD_MONTO_MAXIMO}
+                    step="1"
+                    {...register("monto")}
+                  />
                   {errors.monto && (
                     <p className="text-danger">{errors.monto.message}</p>
                   )}
+                  <Form.Text muted>
+                    Monto maximo: {formatCurrency(ACTIVIDAD_MONTO_MAXIMO)}
+                  </Form.Text>
                 </Form.Group>
-                <Button variant="success" type="submit">
-                  Confirmar
+                <Button variant="success" type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Creando..." : "Confirmar"}
                 </Button>
               </Form>
             </Modal.Body>
@@ -427,13 +486,22 @@ function ActividadesAdmin() {
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>Monto</Form.Label>
-                  <Form.Control type="number" {...register("monto")} />
+                  <Form.Control
+                    type="number"
+                    min="1"
+                    max={ACTIVIDAD_MONTO_MAXIMO}
+                    step="1"
+                    {...register("monto")}
+                  />
                   {errors.monto && (
                     <p className="text-danger">{errors.monto.message}</p>
                   )}
+                  <Form.Text muted>
+                    Monto maximo: {formatCurrency(ACTIVIDAD_MONTO_MAXIMO)}
+                  </Form.Text>
                 </Form.Group>
-                <Button variant="success" type="submit">
-                  Guardar cambios
+                <Button variant="success" type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Guardando..." : "Guardar cambios"}
                 </Button>
               </Form>
             </Modal.Body>

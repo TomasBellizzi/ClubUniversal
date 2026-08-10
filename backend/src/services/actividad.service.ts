@@ -12,6 +12,30 @@ function mapActividadPrismaToActividad(actividad: any): Actividad {
   };
 }
 
+function normalizeNombre(nombre: string) {
+  return nombre.trim().replace(/\s+/g, " ");
+}
+
+function createActividadConflictError(nombre: string) {
+  const error = new Error(`Ya existe una actividad con el nombre "${nombre}"`);
+  (error as any).statusCode = 409;
+  return error;
+}
+
+async function assertNombreDisponible(nombre: string, excludeId?: number) {
+  const normalized = normalizeNombre(nombre);
+  const existente = await prisma.actividad.findFirst({
+    where: {
+      nombre: { equals: normalized, mode: "insensitive" },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
+    },
+    select: { id: true },
+  });
+
+  if (existente) throw createActividadConflictError(normalized);
+  return normalized;
+}
+
 // Obtener todas las actividades
 export async function getAllActividades(): Promise<Actividad[]> {
   const actividades = await prisma.actividad.findMany({
@@ -31,15 +55,28 @@ export async function getActividadById(id: number): Promise<Actividad> {
 
 // Crear actividad
 export async function createActividad(data: CreateActividadRequest): Promise<Actividad> {
-  const actividad = await prisma.actividad.create({ data });
+  const nombre = await assertNombreDisponible(data.nombre);
+  const actividad = await prisma.actividad.create({
+    data: {
+      ...data,
+      nombre,
+    },
+  });
   return mapActividadPrismaToActividad(actividad);
 }
 
 // Actualizar actividad
 export async function updateActividad(id: number, data: UpdateActividadRequest): Promise<Actividad> {
+  const nombre = data.nombre !== undefined
+    ? await assertNombreDisponible(data.nombre, id)
+    : undefined;
+
   const actividad = await prisma.actividad.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      ...(nombre !== undefined ? { nombre } : {}),
+    },
   });
   return mapActividadPrismaToActividad(actividad);
 }
