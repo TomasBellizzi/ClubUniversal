@@ -12,6 +12,18 @@ import { emailService } from "../service/emailService";
 import { entradaSchema } from "../validations/entradasSchema";
 
 const MP_PENDING_KEY = "mercadoPagoEntradaPendiente";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV ? "http://localhost:3000" : "";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_BASE_URL).replace(/\/$/, "");
+
+function buildApiUrl(path) {
+  if (!API_BASE_URL) return `/api${path}`;
+  return `${API_BASE_URL}/api${path}`;
+}
+
+async function getResponseError(res, fallback) {
+  const data = await res.json().catch(() => null);
+  return data?.error || data?.message || fallback;
+}
 
 export default function SocioEntradas() {
   const [eventos, setEventos] = useState([]);
@@ -19,11 +31,12 @@ export default function SocioEntradas() {
   const [eventoSeleccionado, setEventoSeleccionado] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingDatos, setLoadingDatos] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [filtroEntradas, setFiltroEntradas] = useState("todas");
   const [usuario, setUsuario] = useState(null);
   const location = useLocation();
 
-  const API_BASE = `${import.meta.env.VITE_API_URL}/api`;
   const token = localStorage.getItem("token");
 
   const {
@@ -39,31 +52,37 @@ export default function SocioEntradas() {
 
   const fetchEventos = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/eventos`, {
+      const res = await fetch(buildApiUrl("/eventos"), {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Error al cargar eventos");
+      if (!res.ok) throw new Error(await getResponseError(res, "Error al cargar eventos"));
       const data = await res.json();
       setEventos(Array.isArray(data?.eventos) ? data.eventos : Array.isArray(data) ? data : []);
+      setLoadError("");
+      return true;
     } catch (error) {
       console.error(error);
-      alert(error.message);
+      setLoadError(error.message || "Error al cargar eventos");
+      return false;
     }
-  }, [API_BASE, token]);
+  }, [token]);
 
   const fetchMisEntradas = useCallback(async (socioId) => {
     try {
-      const res = await fetch(`${API_BASE}/entradas?socioId=${socioId}`, {
+      const res = await fetch(buildApiUrl(`/entradas?socioId=${socioId}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error("Error al cargar entradas");
+      if (!res.ok) throw new Error(await getResponseError(res, "Error al cargar entradas"));
       const data = await res.json();
       setMisEntradas(Array.isArray(data?.entradas) ? data.entradas : Array.isArray(data) ? data : []);
+      setLoadError("");
+      return true;
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      setLoadError(err.message || "Error al cargar entradas");
+      return false;
     }
-  }, [API_BASE, token]);
+  }, [token]);
 
   const handlePagoAprobado = useCallback(async (entradaId) => {
     try {
@@ -72,7 +91,7 @@ export default function SocioEntradas() {
 
       await fetchMisEntradas(usuarioData.socio.id);
 
-      const res = await fetch(`${API_BASE}/entradas/${entradaId}`, {
+      const res = await fetch(buildApiUrl(`/entradas/${entradaId}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("No se pudo recuperar la entrada pagada");
@@ -100,7 +119,7 @@ export default function SocioEntradas() {
       console.error(error);
       alert(error.message);
     }
-  }, [API_BASE, fetchMisEntradas, token]);
+  }, [fetchMisEntradas, token]);
 
   const conciliarPagoPendiente = useCallback(async () => {
     const pendingRaw = localStorage.getItem(MP_PENDING_KEY);
@@ -111,7 +130,7 @@ export default function SocioEntradas() {
       if (!pending?.entradaId) return;
 
       const res = await axios.post(
-        `${API_BASE}/eventos/mercadopago/entradas/${pending.entradaId}/conciliar`,
+        buildApiUrl(`/eventos/mercadopago/entradas/${pending.entradaId}/conciliar`),
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -127,17 +146,41 @@ export default function SocioEntradas() {
     } catch (error) {
       console.error(error);
     }
-  }, [API_BASE, handlePagoAprobado, token]);
+  }, [handlePagoAprobado, token]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function cargarDatos() {
+      setLoadingDatos(true);
+      setLoadError("");
+
+      const usuarioData = JSON.parse(localStorage.getItem("usuario"));
+      if (usuarioData?.socio) {
+        setUsuario(usuarioData);
+      }
+
+      const tareas = [fetchEventos()];
+      if (usuarioData?.socio) {
+        tareas.push(fetchMisEntradas(usuarioData.socio.id));
+      }
+
+      await Promise.allSettled(tareas);
+      if (mounted) setLoadingDatos(false);
+    }
+
+    cargarDatos();
+    conciliarPagoPendiente();
+
+    return () => {
+      mounted = false;
+    };
+  }, [conciliarPagoPendiente, fetchEventos, fetchMisEntradas]);
 
   useEffect(() => {
     const usuarioData = JSON.parse(localStorage.getItem("usuario"));
-    if (usuarioData?.socio) {
-      setUsuario(usuarioData);
-      fetchMisEntradas(usuarioData.socio.id);
-    }
-    fetchEventos();
-    conciliarPagoPendiente();
-  }, [conciliarPagoPendiente, fetchEventos, fetchMisEntradas]);
+    if (usuarioData?.socio) setUsuario(usuarioData);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -169,7 +212,7 @@ export default function SocioEntradas() {
     setLoading(true);
     try {
       const res = await axios.post(
-        `${API_BASE}/eventos/${eventoSeleccionado.id}/mercadopago/preferencia`,
+        buildApiUrl(`/eventos/${eventoSeleccionado.id}/mercadopago/preferencia`),
         { cantidad: Number(data.cantidad) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -189,7 +232,7 @@ export default function SocioEntradas() {
       window.location.href = redirectUrl;
     } catch (error) {
       console.error(error);
-      alert(error.response?.data?.message || error.message);
+      alert(error.response?.data?.error || error.response?.data?.message || error.message);
       setLoading(false);
     }
   };
@@ -295,7 +338,18 @@ export default function SocioEntradas() {
                   </div>
                 </div>
 
-                {entradasFiltradas.length === 0 ? (
+                {loadError && !loadingDatos && eventos.length === 0 && misEntradas.length === 0 && (
+                  <Alert variant="danger" className="text-center">
+                    <i className="bi bi-exclamation-triangle me-2"></i>
+                    {loadError}
+                  </Alert>
+                )}
+
+                {loadingDatos && misEntradas.length === 0 ? (
+                  <Alert variant="light" className="text-center">
+                    Cargando entradas...
+                  </Alert>
+                ) : entradasFiltradas.length === 0 ? (
                   <Alert variant="info" className="text-center">
                     <i className="bi bi-info-circle me-2"></i>
                     No tenes entradas.
@@ -351,48 +405,58 @@ export default function SocioEntradas() {
                   <i className="bi bi-calendar-event me-2 text-success"></i>
                   Proximos Eventos
                 </h4>
-                <Row className="g-3">
-                  {eventosDisponibles.map((evento) => (
-                    <Col key={evento.id} xs={12} md={6} lg={4}>
-                      <Card className="h-100 evento-card shadow-sm">
-                        <Card.Body className="d-flex flex-column">
-                          <h6 className="mb-2">{evento.nombre}</h6>
-                          <small className="text-muted d-block">
-                            <i className="bi bi-calendar3 me-1"></i>
-                            {formatearFecha(evento.fecha)}
-                          </small>
-                          <small className="text-muted d-block">
-                            <i className="bi bi-clock me-1"></i>
-                            {evento.horaInicio}hs a {evento.horaFin}hs
-                          </small>
-                          <small className="text-muted d-block">
-                            <i className="bi bi-geo-alt me-1"></i>
-                            {evento.actividad
-                              ? `${evento.actividad.nombre}${evento.ubicacion ? ` - ${evento.ubicacion}` : ""}`
-                              : "Sin actividad asignada"}
-                          </small>
-                          <small className="text-muted d-block">
-                            <i className="bi bi-people me-1"></i>
-                            Entradas disponibles:{" "}
-                            {Number(evento.capacidad ?? 0) - Number(evento.entradasVendidas ?? 0)}
-                          </small>
-                          {evento.descripcion && (
-                            <small className="text-muted d-block mt-2">
-                              <strong>Descripcion:</strong> {evento.descripcion}
+                {loadingDatos && eventos.length === 0 ? (
+                  <Alert variant="light" className="text-center">
+                    Cargando eventos...
+                  </Alert>
+                ) : eventosDisponibles.length === 0 ? (
+                  <Alert variant="info" className="text-center">
+                    No hay eventos disponibles.
+                  </Alert>
+                ) : (
+                  <Row className="g-3">
+                    {eventosDisponibles.map((evento) => (
+                      <Col key={evento.id} xs={12} md={6} lg={4}>
+                        <Card className="h-100 evento-card shadow-sm">
+                          <Card.Body className="d-flex flex-column">
+                            <h6 className="mb-2">{evento.nombre}</h6>
+                            <small className="text-muted d-block">
+                              <i className="bi bi-calendar3 me-1"></i>
+                              {formatearFecha(evento.fecha)}
                             </small>
-                          )}
-                          <Button
-                            variant="success"
-                            className="mt-auto"
-                            onClick={() => handleAbrirCompra(evento)}
-                          >
-                            Comprar
-                          </Button>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
+                            <small className="text-muted d-block">
+                              <i className="bi bi-clock me-1"></i>
+                              {evento.horaInicio}hs a {evento.horaFin}hs
+                            </small>
+                            <small className="text-muted d-block">
+                              <i className="bi bi-geo-alt me-1"></i>
+                              {evento.actividad
+                                ? `${evento.actividad.nombre}${evento.ubicacion ? ` - ${evento.ubicacion}` : ""}`
+                                : "Sin actividad asignada"}
+                            </small>
+                            <small className="text-muted d-block">
+                              <i className="bi bi-people me-1"></i>
+                              Entradas disponibles:{" "}
+                              {Number(evento.capacidad ?? 0) - Number(evento.entradasVendidas ?? 0)}
+                            </small>
+                            {evento.descripcion && (
+                              <small className="text-muted d-block mt-2">
+                                <strong>Descripcion:</strong> {evento.descripcion}
+                              </small>
+                            )}
+                            <Button
+                              variant="success"
+                              className="mt-auto"
+                              onClick={() => handleAbrirCompra(evento)}
+                            >
+                              Comprar
+                            </Button>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                )}
               </section>
             </>
           )}
@@ -423,7 +487,7 @@ export default function SocioEntradas() {
                   </div>
 
                   <Alert variant="info" className="mb-0">
-                    Al confirmar, vas a ser redirigido a Mercado Pago para completar el pago con una cuenta de prueba.
+                    Al confirmar, vas a ser redirigido a Mercado Pago para completar el pago.
                   </Alert>
                 </>
               )}

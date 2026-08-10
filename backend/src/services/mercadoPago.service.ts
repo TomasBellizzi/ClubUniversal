@@ -6,18 +6,55 @@ function getRequiredEnv(name: string) {
   const value = process.env[name];
   if (!value) {
     const error = new Error(`${name} no configurado`);
-    (error as any).statusCode = 500;
+    (error as any).statusCode = 503;
+    (error as any).publicMessage = `Mercado Pago no esta configurado: falta ${name}`;
     throw error;
   }
   return value;
 }
 
+function isProduction() {
+  return process.env.NODE_ENV === "production";
+}
+
+function createMercadoPagoConfigError(message: string) {
+  const error = new Error(message);
+  (error as any).statusCode = 503;
+  (error as any).publicMessage = `Mercado Pago no esta configurado correctamente: ${message}`;
+  return error;
+}
+
+function getConfiguredUrl(name: string, developmentFallback: string) {
+  const rawValue = process.env[name] || (!isProduction() ? developmentFallback : "");
+
+  if (!rawValue) {
+    throw createMercadoPagoConfigError(`falta ${name}`);
+  }
+
+  const value = rawValue.replace(/\/$/, "");
+
+  try {
+    const parsed = new URL(value);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      throw new Error("invalid protocol");
+    }
+  } catch {
+    throw createMercadoPagoConfigError(`${name} no es una URL valida`);
+  }
+
+  if (isProduction() && isLocalUrl(value)) {
+    throw createMercadoPagoConfigError(`${name} no puede apuntar a localhost en produccion`);
+  }
+
+  return value;
+}
+
 function getFrontendUrl() {
-  return (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+  return getConfiguredUrl("FRONTEND_URL", "http://localhost:5173");
 }
 
 function getBackendPublicUrl() {
-  return (process.env.BACKEND_PUBLIC_URL || "http://localhost:3000").replace(/\/$/, "");
+  return getConfiguredUrl("BACKEND_PUBLIC_URL", "http://localhost:3000");
 }
 
 function isLocalUrl(url: string) {
@@ -41,6 +78,7 @@ async function mercadoPagoFetch<T>(url: URL, options: RequestInit = {}): Promise
     const message = body?.message || body?.error || "Error al comunicarse con Mercado Pago";
     const error = new Error(message);
     (error as any).statusCode = response.status;
+    (error as any).publicMessage = `Mercado Pago rechazo la operacion: ${message}`;
     (error as any).details = body;
     throw error;
   }
@@ -93,7 +131,30 @@ function shouldSendPayerData() {
   return process.env.MERCADOPAGO_SEND_PAYER_DATA === "true";
 }
 
+function throwIfMercadoPagoMigrationMissing(error: any): never {
+  const message = `${error?.message || ""} ${error?.meta?.column || ""}`;
+  const isSchemaMismatch =
+    ["P2010", "P2022"].includes(error?.code) ||
+    /mercadoPago|estado_entrada|FormaDePago|column .* does not exist|invalid input value for enum/i.test(message);
+
+  if (!isSchemaMismatch) throw error;
+
+  const migrationError = new Error("Migracion de Mercado Pago para entradas no aplicada");
+  (migrationError as any).statusCode = 503;
+  (migrationError as any).publicMessage =
+    "La base de datos del deploy no tiene aplicada la migracion de Mercado Pago para entradas. Ejecuta prisma migrate deploy antes de probar el pago.";
+  (migrationError as any).details = {
+    code: error?.code,
+    meta: error?.meta,
+  };
+  throw migrationError;
+}
+
 export async function crearPreferenciaEntrada(eventoId: number, cantidad: number, socioId: number) {
+  getRequiredEnv("MERCADOPAGO_ACCESS_TOKEN");
+  const frontendUrl = getFrontendUrl();
+  const backendUrl = getBackendPublicUrl();
+
   if (!Number.isInteger(eventoId) || eventoId <= 0) {
     throw Object.assign(new Error("ID de evento invalido"), { statusCode: 400 });
   }
@@ -120,13 +181,18 @@ export async function crearPreferenciaEntrada(eventoId: number, cantidad: number
     throw Object.assign(new Error("Evento no encontrado"), { statusCode: 404 });
   }
 
-  const entradasReservadas = await prisma.entrada.aggregate({
-    _sum: { cantidad: true },
-    where: {
-      eventoId,
-      estado: "PAGADA",
-    },
-  });
+  let entradasReservadas;
+  try {
+    entradasReservadas = await prisma.entrada.aggregate({
+      _sum: { cantidad: true },
+      where: {
+        eventoId,
+        estado: "PAGADA",
+      },
+    });
+  } catch (error) {
+    throwIfMercadoPagoMigrationMissing(error);
+  }
 
   const vendidas = entradasReservadas._sum.cantidad || 0;
   if (vendidas + cantidad > evento.capacidad) {
@@ -136,25 +202,29 @@ export async function crearPreferenciaEntrada(eventoId: number, cantidad: number
   const total = evento.precioEntrada * cantidad;
   const externalReference = `entrada:${eventoId}:${socioId}:${Date.now()}`;
 
-  const entrada = await prisma.entrada.create({
-    data: {
-      eventoId,
-      cantidad,
-      precioUnitario: evento.precioEntrada,
-      total,
-      fechaCompra: new Date(),
-      socioId,
-      formaDePago: "MERCADOPAGO",
-      estado: "PENDIENTE",
-      mercadoPagoExternalReference: externalReference,
-    },
-    include: {
-      evento: { include: { actividad: true } },
-      socio: true,
-    },
-  });
+  let entrada;
+  try {
+    entrada = await prisma.entrada.create({
+      data: {
+        eventoId,
+        cantidad,
+        precioUnitario: evento.precioEntrada,
+        total,
+        fechaCompra: new Date(),
+        socioId,
+        formaDePago: "MERCADOPAGO",
+        estado: "PENDIENTE",
+        mercadoPagoExternalReference: externalReference,
+      },
+      include: {
+        evento: { include: { actividad: true } },
+        socio: true,
+      },
+    });
+  } catch (error) {
+    throwIfMercadoPagoMigrationMissing(error);
+  }
 
-  const backendUrl = getBackendPublicUrl();
   const autoReturn = isLocalUrl(backendUrl) ? undefined : "approved";
   const payer = shouldSendPayerData()
     ? {
@@ -168,35 +238,51 @@ export async function crearPreferenciaEntrada(eventoId: number, cantidad: number
       }
     : undefined;
 
-  const preference = await mercadoPagoFetch<PreferenceResponse>(buildPreferenceUrl(), {
-    method: "POST",
-    body: JSON.stringify({
-      items: [
-        {
-          id: String(evento.id),
-          title: `Entrada - ${evento.nombre}`,
-          description: evento.descripcion || evento.actividad?.nombre || "Entrada Club Universal",
-          quantity: cantidad,
-          unit_price: evento.precioEntrada,
-          currency_id: "ARS",
+  let preference: PreferenceResponse;
+  try {
+    preference = await mercadoPagoFetch<PreferenceResponse>(buildPreferenceUrl(), {
+      method: "POST",
+      body: JSON.stringify({
+        items: [
+          {
+            id: String(evento.id),
+            title: `Entrada - ${evento.nombre}`,
+            description: evento.descripcion || evento.actividad?.nombre || "Entrada Club Universal",
+            quantity: cantidad,
+            unit_price: evento.precioEntrada,
+            currency_id: "ARS",
+          },
+        ],
+        ...(payer && { payer }),
+        back_urls: {
+          success: `${backendUrl}/api/eventos/mercadopago/retorno?entradaId=${entrada.id}&status=success`,
+          failure: `${backendUrl}/api/eventos/mercadopago/retorno?entradaId=${entrada.id}&status=failure`,
+          pending: `${backendUrl}/api/eventos/mercadopago/retorno?entradaId=${entrada.id}&status=pending`,
         },
-      ],
-      ...(payer && { payer }),
-      back_urls: {
-        success: `${backendUrl}/api/eventos/mercadopago/retorno?entradaId=${entrada.id}&status=success`,
-        failure: `${backendUrl}/api/eventos/mercadopago/retorno?entradaId=${entrada.id}&status=failure`,
-        pending: `${backendUrl}/api/eventos/mercadopago/retorno?entradaId=${entrada.id}&status=pending`,
+        ...(autoReturn && { auto_return: autoReturn }),
+        notification_url: `${backendUrl}/api/eventos/mercadopago/webhook`,
+        external_reference: externalReference,
+        metadata: {
+          entrada_id: entrada.id,
+          evento_id: evento.id,
+          socio_id: socio.id,
+          frontend_url: frontendUrl,
+        },
+      }),
+    });
+  } catch (error) {
+    await prisma.entrada.update({
+      where: { id: entrada.id },
+      data: {
+        estado: "CANCELADA",
+        mercadoPagoStatus: "PREFERENCE_ERROR",
       },
-      ...(autoReturn && { auto_return: autoReturn }),
-      notification_url: `${backendUrl}/api/eventos/mercadopago/webhook`,
-      external_reference: externalReference,
-      metadata: {
-        entrada_id: entrada.id,
-        evento_id: evento.id,
-        socio_id: socio.id,
-      },
-    }),
-  });
+    }).catch((updateError) => {
+      console.error("No se pudo cancelar la entrada tras fallar Mercado Pago:", updateError);
+    });
+
+    throw error;
+  }
 
   const updated = await prisma.entrada.update({
     where: { id: entrada.id },
