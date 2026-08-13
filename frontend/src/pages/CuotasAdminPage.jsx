@@ -237,7 +237,12 @@ function CuotasAdminPage() {
     }
 
     navigate("/generar-cuota", {
-      state: actividad ? { actividadId: actividad.id } : undefined,
+      state: actividad
+        ? {
+            actividadId: actividad.id,
+            actividadNombre: actividad.nombre,
+          }
+        : undefined,
     });
   };
 
@@ -267,12 +272,6 @@ function CuotasAdminPage() {
 
           {!actividadSeleccionada && !socioSeleccionado ? (
             <>
-              <div className="d-flex justify-content-end mb-3">
-                <Button variant="success" onClick={() => handleGenerarCuotas()} className="px-4">
-                  Generar cuotas
-                </Button>
-              </div>
-
               <div className="actividades-cuotas-grid">
                 {loadingActividades && (
                   <div className="text-center py-3 text-muted">Cargando actividades...</div>

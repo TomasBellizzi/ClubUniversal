@@ -33,6 +33,8 @@ const schema = yup.object({
 function CuotasAdmin() {
   const location = useLocation();
   const actividadInicialId = location.state?.actividadId ? String(location.state.actividadId) : "";
+  const actividadInicialNombre = location.state?.actividadNombre || "";
+  const actividadFija = Boolean(actividadInicialId);
   const [loading, setLoading] = useState(false);
   const [actividades, setActividades] = useState([]);
   const [socios, setSocios] = useState([]);
@@ -65,6 +67,8 @@ function CuotasAdmin() {
   const watchActividadId = watch("actividadId");
   const watchMes = watch("mes");
   const watchFecha = watch("fechaVenc");
+  const actividadActual = actividades.find((a) => String(a.id) === String(watchActividadId));
+  const actividadActualNombre = actividadActual?.nombre || actividadInicialNombre || "Actividad seleccionada";
 
   // Función auxiliar para calcular último día del mes
   function getUltimoDiaDelMes(nombreMes, año = new Date().getFullYear()) {
@@ -201,20 +205,27 @@ function CuotasAdmin() {
           <form onSubmit={handleSubmit(onPreviewSubmit)} noValidate className="row g-4">
             <div className="col-md-6">
               <label className="form-label fw-semibold">Actividad</label>
-              <select
-                className={`form-select ${errors.actividadId ? "is-invalid" : ""}`}
-                {...register("actividadId")}
-                onChange={(e) =>
-                  setValue("actividadId", e.target.value, { shouldValidate: true })
-                }
-              >
-                <option value="">Seleccionar actividad</option>
-                {actividades.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nombre}
-                  </option>
-                ))}
-              </select>
+              {actividadFija ? (
+                <>
+                  <input type="hidden" {...register("actividadId")} />
+                  <div className="form-control bg-light">{actividadActualNombre}</div>
+                </>
+              ) : (
+                <select
+                  className={`form-select ${errors.actividadId ? "is-invalid" : ""}`}
+                  {...register("actividadId")}
+                  onChange={(e) =>
+                    setValue("actividadId", e.target.value, { shouldValidate: true })
+                  }
+                >
+                  <option value="">Seleccionar actividad</option>
+                  {actividades.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nombre}
+                    </option>
+                  ))}
+                </select>
+              )}
               <div className="invalid-feedback">{errors.actividadId?.message}</div>
             </div>
 
