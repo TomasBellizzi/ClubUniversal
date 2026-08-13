@@ -115,7 +115,9 @@ export async function generarCuotas(
       actividadId: body.actividadId ?? undefined, // opcional
       mes: body.mes,
       montoBase: body.montoBase ?? 0,
+      fechaVencimiento: body.fechaVencimiento,
       preview: !!body.preview, 
+      soloSinActividad: !!body.soloSinActividad,
     });
 
     return res.status(200).json(result);

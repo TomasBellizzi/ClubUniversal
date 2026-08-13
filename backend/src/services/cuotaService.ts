@@ -135,6 +135,10 @@ export async function getCuotasAdministrativo(
 ): Promise<CuotaAdministrativoDTO[]> {
   const where: any = {};
   if (filtros.estado && filtros.estado !== 'Todas') where.estado = filtros.estado;
+  const socioId = Number(filtros.socioId || 0);
+  if (socioId > 0) {
+    where.socio_id = socioId;
+  }
   const actividadId = Number(filtros.actividadId || 0);
   if (actividadId > 0) {
     where.cuotaXactividad = {
@@ -358,11 +362,19 @@ export async function getCuotasAdmin(
 export async function generarCuotas(
   data: GenerarCuotasRequest
 ): Promise<GenerarCuotasResponse> {
-  const { actividadId, mes, montoBase, preview } = data;
+  const { actividadId, mes, montoBase, fechaVencimiento, preview, soloSinActividad } = data;
+  const fechaVencimientoData = fechaVencimiento ? new Date(fechaVencimiento) : null;
+  const fechaVencimientoValida =
+    fechaVencimientoData && !Number.isNaN(fechaVencimientoData.getTime())
+      ? fechaVencimientoData
+      : null;
 
   // 🔹 Traer socios activos
   const socios = await prisma.socio.findMany({
-    where: { estado: 'ACTIVO' },
+    where: {
+      estado: 'ACTIVO',
+      ...(soloSinActividad ? { actividades: { none: {} } } : {}),
+    },
   });
 
   let created = 0;
@@ -373,19 +385,21 @@ export async function generarCuotas(
   // 🔹 Procesar cada socio
   for (const socio of socios) {
     // 1️⃣ Buscar sus actividades (todas o filtradas)
-    const actividadesSocio = await prisma.actividadSocio.findMany({
-      where: {
-        socioId: socio.id,
-        ...(actividadId ? { actividadId } : {}),
-      },
-      include: {
-        actividad: {
-          select: { id: true, nombre: true, monto: true, activo: true },
-        },
-      },
-    });
+    const actividadesSocio = soloSinActividad
+      ? []
+      : await prisma.actividadSocio.findMany({
+          where: {
+            socioId: socio.id,
+            ...(actividadId ? { actividadId } : {}),
+          },
+          include: {
+            actividad: {
+              select: { id: true, nombre: true, monto: true, activo: true },
+            },
+          },
+        });
 
-    if (!actividadesSocio.length) {
+    if (!soloSinActividad && !actividadesSocio.length) {
       skips++;
       continue;
     }
@@ -410,7 +424,13 @@ export async function generarCuotas(
 
     // 3️⃣ Si es solo previsualización → no toca BD
     if (preview) {
-      previewItems.push({ socioId: socio.id, total, detalle });
+      previewItems.push({
+        socioId: socio.id,
+        socioNombre: `${socio.apellido} ${socio.nombre}`,
+        dni: socio.dni,
+        total,
+        detalle,
+      });
       continue;
     }
 
@@ -429,7 +449,7 @@ export async function generarCuotas(
           monto: total,
           metodo_pago: $Enums.FormaDePago.EFECTIVO,
           estado: $Enums.estado_cuota.PENDIENTE,
-          fecha_vencimiento: addDays(new Date(), 45),
+          fecha_vencimiento: fechaVencimientoValida ?? addDays(new Date(), 45),
           cuotaXactividad: {
             create: detalle
               .filter((d) => d.tipo === 'actividad')
@@ -448,7 +468,7 @@ export async function generarCuotas(
         data: {
           monto: total,
           // Recalcular fecha de vencimiento en base a created_at
-          fecha_vencimiento: addDays(existente.created_at, 45),
+          fecha_vencimiento: fechaVencimientoValida ?? addDays(existente.created_at, 45),
           cuotaXactividad: {
             deleteMany: {}, // limpiar previas
             create: detalle

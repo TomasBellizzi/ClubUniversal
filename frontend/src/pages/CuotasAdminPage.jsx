@@ -48,14 +48,24 @@ const mapCuotaToRow = (r) => ({
 
 function CuotasAdminPage() {
   const location = useLocation();
-  const defId = location.state?.defId || "";
-  const [busqueda, setBusqueda] = useState(defId.toString());
+  const socioInicial = useMemo(() => {
+    const socioInicialId = location.state?.socioId || location.state?.defId || "";
+    if (!socioInicialId) return null;
+
+    return {
+      id: socioInicialId,
+      nombre: location.state?.socioNombre || "Socio",
+      dni: location.state?.socioDni || "",
+    };
+  }, [location.state]);
+  const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState("Todas");
   const [loading, setLoading] = useState(false);
   const [loadingActividades, setLoadingActividades] = useState(false);
   const [cuotas, setCuotas] = useState([]);
   const [actividades, setActividades] = useState([]);
   const [actividadSeleccionada, setActividadSeleccionada] = useState(null);
+  const [socioSeleccionado, setSocioSeleccionado] = useState(socioInicial);
   const [showModal, setShowModal] = useState(false);
   const [selectedCuota, setSelectedCuota] = useState(null);
   const navigate = useNavigate();
@@ -88,10 +98,19 @@ function CuotasAdminPage() {
       }
     };
 
-    fetchActividades();
+    if (!socioInicial) {
+      fetchActividades();
+    }
+
     return () => {
       mounted = false;
     };
+  }, [socioInicial]);
+
+  useEffect(() => {
+    if (!socioInicial) return;
+    fetchCuotasSocio(socioInicial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCuotasActividad = async (actividad) => {
@@ -120,10 +139,42 @@ function CuotasAdminPage() {
     }
   };
 
+  const fetchCuotasSocio = async (socio) => {
+    try {
+      setSocioSeleccionado(socio);
+      setActividadSeleccionada(null);
+      setBusqueda("");
+      setFiltro("Todas");
+      setCuotas([]);
+      setLoading(true);
+
+      const res = await api.get("/api/cuotas/administrativo", {
+        params: { socioId: socio.id },
+      });
+      const cuotasDb = Array.isArray(res.data?.cuotas)
+        ? res.data.cuotas
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+
+      setCuotas(cuotasDb.map(mapCuotaToRow));
+    } catch (err) {
+      console.error("Error cargando cuotas del socio:", err);
+      alert("No se pudieron cargar las cuotas de este socio.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const volverAActividades = () => {
+    if (socioSeleccionado) {
+      navigate("/socios");
+      return;
+    }
+
     setActividadSeleccionada(null);
     setCuotas([]);
-    setBusqueda(defId.toString());
+    setBusqueda("");
     setFiltro("Todas");
   };
 
@@ -186,7 +237,24 @@ function CuotasAdminPage() {
     }
 
     navigate("/generar-cuota", {
-      state: actividad ? { actividadId: actividad.id } : undefined,
+      state: actividad
+        ? {
+            actividadId: actividad.id,
+            actividadNombre: actividad.nombre,
+            actividadMonto: actividad.monto,
+          }
+        : undefined,
+    });
+  };
+
+  const handleGenerarCuotasSinActividad = () => {
+    if (!canGenerateCuotas) {
+      alert("Solo un administrador puede generar cuotas.");
+      return;
+    }
+
+    navigate("/generar-cuota", {
+      state: { sinActividad: true },
     });
   };
 
@@ -198,13 +266,15 @@ function CuotasAdminPage() {
         <div className="card shadow-sm border-0 rounded-4 p-4">
           <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
             <div className="d-flex align-items-center gap-3">
-              {actividadSeleccionada && (
+              {(actividadSeleccionada || socioSeleccionado) && (
                 <Button variant="outline-secondary" size="sm" onClick={volverAActividades}>
                   Volver
                 </Button>
               )}
               <h4 className="mb-0 text-success fw-bold">
-                {actividadSeleccionada
+                {socioSeleccionado
+                  ? `Cuotas - ${socioSeleccionado.nombre}`
+                  : actividadSeleccionada
                   ? `Cuotas - ${actividadSeleccionada.nombre}`
                   : "Cuotas por Actividad"}
               </h4>
@@ -212,14 +282,17 @@ function CuotasAdminPage() {
             {(loading || loadingActividades) && <Spinner animation="border" size="sm" />}
           </div>
 
-          {!actividadSeleccionada ? (
+          {!actividadSeleccionada && !socioSeleccionado ? (
             <>
               <div className="d-flex justify-content-end mb-3">
-                <Button variant="success" onClick={() => handleGenerarCuotas()} className="px-4">
-                  Generar cuotas
+                <Button
+                  variant="outline-success"
+                  size="sm"
+                  onClick={handleGenerarCuotasSinActividad}
+                >
+                  Generar cuotas socios sin actividad
                 </Button>
               </div>
-
               <div className="actividades-cuotas-grid">
                 {loadingActividades && (
                   <div className="text-center py-3 text-muted">Cargando actividades...</div>
@@ -272,6 +345,9 @@ function CuotasAdminPage() {
             </>
           ) : (
             <>
+              {socioSeleccionado?.dni && (
+                <div className="text-muted small mb-3">DNI: {socioSeleccionado.dni}</div>
+              )}
               <div className="d-flex flex-wrap align-items-center gap-3 mb-4">
                 <Form.Control
                   type="text"

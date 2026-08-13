@@ -58,7 +58,11 @@ export const EstadoCuotaSchema = z.enum([
 export const createCuotaSchema = z.object({
   actividadId: z.coerce.number()
     .int()
-    .min(0, { message: 'El ID de la actividad no puede ser negativo (usar 0 para todas)' }),
+    .min(0, { message: 'El ID de la actividad no puede ser negativo (usar 0 para todas)' })
+    .optional()
+    .default(0),
+
+  soloSinActividad: z.boolean().optional().default(false),
 
   mes: z.enum([
     'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
@@ -69,6 +73,8 @@ export const createCuotaSchema = z.object({
   montoBase: z.coerce.number()
     .min(0, { message: 'El monto base no puede ser negativo' })
     .max(1000000, { message: 'El monto base debe ser menor a 1 millón' }),
+
+  fechaVencimiento: z.string().optional(),
 
   preview: z.boolean().optional(),
 });
