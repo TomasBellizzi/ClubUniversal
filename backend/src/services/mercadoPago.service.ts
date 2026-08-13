@@ -2,15 +2,20 @@ import prisma from "../config/prisma";
 
 const MERCADO_PAGO_API = "https://api.mercadopago.com";
 
-function getRequiredEnv(name: string) {
-  const value = process.env[name];
+function getRequiredEnv(name: string, aliases: string[] = []) {
+  const value = [name, ...aliases].map((key) => process.env[key]).find(Boolean);
   if (!value) {
-    const error = new Error(`${name} no configurado`);
+    const expectedNames = [name, ...aliases].join(" o ");
+    const error = new Error(`${expectedNames} no configurado`);
     (error as any).statusCode = 503;
-    (error as any).publicMessage = `Mercado Pago no esta configurado: falta ${name}`;
+    (error as any).publicMessage = `Mercado Pago no esta configurado: falta ${expectedNames}`;
     throw error;
   }
   return value;
+}
+
+function getMercadoPagoAccessToken() {
+  return getRequiredEnv("MERCADO_PAGO_ACCESS_TOKEN", ["MERCADOPAGO_ACCESS_TOKEN"]);
 }
 
 function isProduction() {
@@ -62,7 +67,7 @@ function isLocalUrl(url: string) {
 }
 
 async function mercadoPagoFetch<T>(url: URL, options: RequestInit = {}): Promise<T> {
-  const accessToken = getRequiredEnv("MERCADOPAGO_ACCESS_TOKEN");
+  const accessToken = getMercadoPagoAccessToken();
   const response = await fetch(url.toString(), {
     ...options,
     headers: {
@@ -151,7 +156,7 @@ function throwIfMercadoPagoMigrationMissing(error: any): never {
 }
 
 export async function crearPreferenciaEntrada(eventoId: number, cantidad: number, socioId: number) {
-  getRequiredEnv("MERCADOPAGO_ACCESS_TOKEN");
+  getMercadoPagoAccessToken();
   const frontendUrl = getFrontendUrl();
   const backendUrl = getBackendPublicUrl();
 
