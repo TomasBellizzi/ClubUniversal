@@ -83,6 +83,7 @@ export interface GetCuotasAdministrativoQuery {
   estado?: EstadoCuota | 'Todas';
   nombre?: string;
   actividadId?: string | number;
+  socioId?: string | number;
 }
 
 export interface GetCuotasAdministrativoResponse {

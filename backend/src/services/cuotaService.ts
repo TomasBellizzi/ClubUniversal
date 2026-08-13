@@ -135,6 +135,10 @@ export async function getCuotasAdministrativo(
 ): Promise<CuotaAdministrativoDTO[]> {
   const where: any = {};
   if (filtros.estado && filtros.estado !== 'Todas') where.estado = filtros.estado;
+  const socioId = Number(filtros.socioId || 0);
+  if (socioId > 0) {
+    where.socio_id = socioId;
+  }
   const actividadId = Number(filtros.actividadId || 0);
   if (actividadId > 0) {
     where.cuotaXactividad = {

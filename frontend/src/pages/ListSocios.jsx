@@ -65,8 +65,14 @@ function ListSocios() {
     }
   };
 
-  const verSusCuotas = (id) => {
-    navigate(`/cuotas-admin`, { state: { defId: id } });
+  const verSusCuotas = (socio) => {
+    navigate(`/cuotas-admin`, {
+      state: {
+        socioId: socio.socio.id,
+        socioNombre: `${socio.socio.nombre} ${socio.socio.apellido}`,
+        socioDni: socio.socio.dni,
+      },
+    });
   };
 
   // Ver detalles
@@ -195,7 +201,7 @@ function ListSocios() {
                         <Button
                           variant="outline-success"
                           size="sm"
-                          onClick={() => verSusCuotas(s.socio.id)} // Aca se pasa s.socio.id o el id usuario? como esta filtrado en cuotas?
+                          onClick={() => verSusCuotas(s)}
                         >
                           Ver Cuotas
                         </Button>
