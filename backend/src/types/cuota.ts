@@ -116,7 +116,9 @@ export interface GenerarCuotasRequest {
   actividadId?: number; // ahora opcional, coincide con tu controller
   mes: Mes;
   montoBase: number;
+  fechaVencimiento?: string;
   preview?: boolean;
+  soloSinActividad?: boolean;
 }
 
 export type DetalleCuota = {
@@ -128,6 +130,8 @@ export type DetalleCuota = {
 
 export interface PreviewItem {
   socioId: number;
+  socioNombre?: string;
+  dni?: number;
   total: number;
   detalle: DetalleCuota[];
 }

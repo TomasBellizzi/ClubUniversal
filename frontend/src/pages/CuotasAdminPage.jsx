@@ -241,8 +241,20 @@ function CuotasAdminPage() {
         ? {
             actividadId: actividad.id,
             actividadNombre: actividad.nombre,
+            actividadMonto: actividad.monto,
           }
         : undefined,
+    });
+  };
+
+  const handleGenerarCuotasSinActividad = () => {
+    if (!canGenerateCuotas) {
+      alert("Solo un administrador puede generar cuotas.");
+      return;
+    }
+
+    navigate("/generar-cuota", {
+      state: { sinActividad: true },
     });
   };
 
@@ -272,6 +284,15 @@ function CuotasAdminPage() {
 
           {!actividadSeleccionada && !socioSeleccionado ? (
             <>
+              <div className="d-flex justify-content-end mb-3">
+                <Button
+                  variant="outline-success"
+                  size="sm"
+                  onClick={handleGenerarCuotasSinActividad}
+                >
+                  Generar cuotas socios sin actividad
+                </Button>
+              </div>
               <div className="actividades-cuotas-grid">
                 {loadingActividades && (
                   <div className="text-center py-3 text-muted">Cargando actividades...</div>
