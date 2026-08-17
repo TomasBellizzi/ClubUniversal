@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Container, Row, Col, Button, Modal, Form, Card, Spinner, Alert, } from "react-bootstrap";
 import { PlusCircle, Pencil, PersonPlus, InfoCircle, } from "react-bootstrap-icons";
 import Header from "../components/Header";
@@ -22,7 +22,9 @@ function ActividadesAdmin() {
 
   const [mostrarInactivas, setMostrarInactivas] = useState(false);
   const [cargando, setCargando] = useState(true);
+  const [creandoActividad, setCreandoActividad] = useState(false);
   const [error, setError] = useState(null);
+  const creandoActividadRef = useRef(false);
 
   const token = localStorage.getItem("token");
 
@@ -69,6 +71,12 @@ function ActividadesAdmin() {
 
   // Agregar actividad
   const onSubmitAgregar = async (data) => {
+    if (creandoActividadRef.current) return;
+
+    creandoActividadRef.current = true;
+    setCreandoActividad(true);
+    setError(null);
+
     try {
       const response = await axios.post(
         `${BACKURL}/api/actividades`,
@@ -87,7 +95,10 @@ function ActividadesAdmin() {
       setMostrarModal(false);
     } catch (err) {
       console.error(err);
-      setError("No se pudo crear la actividad.");
+      setError(err.response?.data?.error || err.response?.data?.message || "No se pudo crear la actividad.");
+    } finally {
+      creandoActividadRef.current = false;
+      setCreandoActividad(false);
     }
   };
 
@@ -404,8 +415,8 @@ function ActividadesAdmin() {
                     <p className="text-danger">{errors.monto.message}</p>
                   )}
                 </Form.Group>
-                <Button variant="success" type="submit">
-                  Confirmar
+                <Button variant="success" type="submit" disabled={creandoActividad}>
+                  {creandoActividad ? "Creando..." : "Confirmar"}
                 </Button>
               </Form>
             </Modal.Body>
