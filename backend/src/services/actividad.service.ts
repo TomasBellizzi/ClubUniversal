@@ -12,6 +12,17 @@ function mapActividadPrismaToActividad(actividad: any): Actividad {
   };
 }
 
+function normalizeNombreActividad(nombre: string) {
+  return nombre.trim().replace(/\s+/g, " ");
+}
+
+function createDuplicateActividadError(nombre: string) {
+  const error = new Error(`Ya existe una actividad con el nombre ${nombre}`) as any;
+  error.statusCode = 409;
+  error.publicMessage = "Ya existe una actividad con ese nombre.";
+  return error;
+}
+
 // Obtener todas las actividades
 export async function getAllActividades(): Promise<Actividad[]> {
   const actividades = await prisma.actividad.findMany({
@@ -31,15 +42,45 @@ export async function getActividadById(id: number): Promise<Actividad> {
 
 // Crear actividad
 export async function createActividad(data: CreateActividadRequest): Promise<Actividad> {
-  const actividad = await prisma.actividad.create({ data });
+  const nombre = normalizeNombreActividad(data.nombre);
+  const existente = await prisma.actividad.findFirst({
+    where: { nombre: { equals: nombre, mode: "insensitive" } },
+    select: { id: true },
+  });
+
+  if (existente) throw createDuplicateActividadError(nombre);
+
+  const actividad = await prisma.actividad.create({
+    data: {
+      ...data,
+      nombre,
+    },
+  });
   return mapActividadPrismaToActividad(actividad);
 }
 
 // Actualizar actividad
 export async function updateActividad(id: number, data: UpdateActividadRequest): Promise<Actividad> {
+  const nombre = data.nombre ? normalizeNombreActividad(data.nombre) : undefined;
+
+  if (nombre) {
+    const existente = await prisma.actividad.findFirst({
+      where: {
+        nombre: { equals: nombre, mode: "insensitive" },
+        NOT: { id },
+      },
+      select: { id: true },
+    });
+
+    if (existente) throw createDuplicateActividadError(nombre);
+  }
+
   const actividad = await prisma.actividad.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      ...(nombre ? { nombre } : {}),
+    },
   });
   return mapActividadPrismaToActividad(actividad);
 }
