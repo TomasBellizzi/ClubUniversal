@@ -14,7 +14,7 @@
     "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^5.2.2",
     "@mui/icons-material": "^7.3.2",
-    "@mui/material": "^7.3.2",
+    "@mui/material": "^9.2.0",
     "@mui/styled-engine-sc": "^7.3.2",
     "@supabase/supabase-js": "^2.57.2",
     "axios": "^1.11.0",
